@@ -13,31 +13,33 @@ pub struct Mantra {
     pub is_template: bool,
 }
 
+// ^mantra^@kosha provides commentary on external mantra
+#[derive(Debug, Clone)]
+pub struct ExternalCommentary {
+    pub mantra_text: String,
+    pub kosha: String,
+    pub file: String,
+    pub line: usize,
+}
+
 #[derive(Debug, Clone)]
 pub struct Reference {
     pub mantra_text: String,
     pub file: String,
     pub line: usize,
     pub matched_template: Option<String>,
-    // [mantra with kosha references look like {mantra}@{kosha-name}]
+    // ~mantra~@kosha-name for external references
     pub kosha: Option<String>,
 }
 
-#[derive(Debug, Clone)]
-pub struct SpacingViolation {
-    pub file: String,
-    pub line: usize,
-    pub message: String,
-}
-
-// [kosha-alias {kosha-alias}: {kosha-value}]
+// ^kosha-alias {kosha-alias}: {kosha-value}^
 #[derive(Debug, Clone)]
 pub struct KoshaAlias {
     pub alias: String,
     pub value: String,
 }
 
-// [kosha-dir {kosha-alias}: {folder-name}]
+// ^kosha-dir {kosha-alias}: {folder-name}^
 #[derive(Debug, Clone)]
 pub struct KoshaDir {
     pub alias: String,
@@ -54,16 +56,15 @@ pub struct KoshaConfig {
 pub struct Repository {
     pub mantras: HashMap<String, Mantra>,
     pub references: Vec<Reference>,
-    pub spacing_violations: Vec<SpacingViolation>,
+    pub external_commentaries: Vec<ExternalCommentary>,
     pub kosha_config: KoshaConfig,
 }
 
 impl Repository {
-    // [.vyasa and .md are both allowed]
+    // ^.vyasa and .md are both allowed^
     pub fn parse(path: &Path) -> Result<Self, String> {
         let mut repo = Repository::default();
 
-        // [.vyasa/kosha.vyasa contains mantra with kosha references]
         // find repository root and load kosha config
         let repo_root = find_repo_root(path);
         if let Some(root) = &repo_root {
@@ -85,7 +86,7 @@ impl Repository {
                 continue;
             }
 
-            // [.vyasa and .md are both allowed]
+            // ^.vyasa and .md are both allowed^
             let ext = file_path.extension().and_then(|e| e.to_str());
             if !matches!(ext, Some("vyasa") | Some("md")) {
                 continue;
@@ -102,6 +103,9 @@ impl Repository {
 
         // match references to template mantras
         resolve_template_references(&mut repo);
+
+        // determine which mantras have explanations (commentary in same paragraph)
+        mark_explained_mantras(&mut repo);
 
         Ok(repo)
     }
@@ -154,7 +158,6 @@ impl Repository {
         counts
     }
 
-    // [vyasa values cli can query placeholder in file/directory, and filter mantras or even keys]
     pub fn extract_placeholder_values(&self) -> Vec<PlaceholderValue> {
         let mut values = Vec::new();
 
@@ -193,167 +196,31 @@ pub struct PlaceholderValue {
     pub line: usize,
 }
 
+// ^mantras should use inline syntax not block because they are meant to be short^
 fn parse_file(content: &str, file_name: &str, repo: &mut Repository) {
     let lines: Vec<&str> = content.lines().collect();
-    let total_lines = lines.len();
-    let mut i = 0;
     let mut in_code_block = false;
 
-    while i < lines.len() {
-        let line = lines[i].trim();
+    for (line_idx, line) in lines.iter().enumerate() {
+        let line_num = line_idx + 1;
 
         // skip markdown code blocks (``` delimited)
-        if line.starts_with("```") {
+        if line.trim().starts_with("```") {
             in_code_block = !in_code_block;
-            i += 1;
             continue;
         }
 
         if in_code_block {
-            i += 1;
             continue;
         }
 
-        // check for mantra start
-        if line == "--" {
-            // [before / after -- must contain at least one empty line, unless at start/end of file]
-            check_spacing_before(&lines, i, file_name, repo);
-
-            if let Some((mantra, end_line, has_explanation)) =
-                parse_mantra(&lines, i, file_name)
-            {
-                // check spacing after closing --
-                check_spacing_after(&lines, end_line, total_lines, file_name, repo);
-
-                repo.mantras.insert(mantra.text.clone(), mantra);
-                i = end_line + 1;
-
-                // skip explanation text until next mantra or end
-                if has_explanation {
-                    while i < lines.len() && lines[i].trim() != "--" {
-                        // also skip code blocks in explanations
-                        if lines[i].trim().starts_with("```") {
-                            in_code_block = !in_code_block;
-                            i += 1;
-                            continue;
-                        }
-                        if !in_code_block {
-                            parse_references(lines[i], file_name, i + 1, repo);
-                        }
-                        i += 1;
-                    }
-                }
-                continue;
-            }
-        }
-
-        parse_references(lines[i], file_name, i + 1, repo);
-        i += 1;
+        // parse both mantra definitions (^...^) and references (~...~) from this line
+        parse_line(line, file_name, line_num, repo);
     }
 }
 
-// [before / after -- must contain at least one empty line, unless at start/end of file]
-fn check_spacing_before(
-    lines: &[&str],
-    line_idx: usize,
-    file_name: &str,
-    repo: &mut Repository,
-) {
-    if line_idx == 0 {
-        return; // start of file, no spacing needed
-    }
-
-    let prev_line = lines[line_idx - 1].trim();
-    // allow if previous line is empty or another -- (consecutive mantras ok)
-    if !prev_line.is_empty() && prev_line != "--" {
-        repo.spacing_violations.push(SpacingViolation {
-            file: file_name.to_string(),
-            line: line_idx + 1,
-            message: "missing empty line before --".to_string(),
-        });
-    }
-}
-
-fn check_spacing_after(
-    lines: &[&str],
-    closing_line: usize,
-    total_lines: usize,
-    file_name: &str,
-    repo: &mut Repository,
-) {
-    if closing_line + 1 >= total_lines {
-        return; // end of file, no spacing needed
-    }
-
-    let next_line = lines[closing_line + 1].trim();
-    // allow if next line is empty or another -- (consecutive mantras ok)
-    if !next_line.is_empty() && next_line != "--" {
-        repo.spacing_violations.push(SpacingViolation {
-            file: file_name.to_string(),
-            line: closing_line + 2,
-            message: "missing empty line after --".to_string(),
-        });
-    }
-}
-
-fn parse_mantra(
-    lines: &[&str],
-    start: usize,
-    file_name: &str,
-) -> Option<(Mantra, usize, bool)> {
-    let mut i = start + 1;
-    let mut mantra_lines = Vec::new();
-
-    while i < lines.len() {
-        let line = lines[i].trim();
-        if line == "--" {
-            break;
-        }
-        mantra_lines.push(lines[i]);
-        i += 1;
-    }
-
-    if i >= lines.len() {
-        return None;
-    }
-
-    let mantra_text = mantra_lines.join("\n").trim().to_string();
-    if mantra_text.is_empty() {
-        return None;
-    }
-
-    // [mantra specifications can use string formatting templates for mantra with value]
-    let is_template = mantra_text.contains('{') && mantra_text.contains('}');
-
-    // check if there's explanation after the closing --
-    let mut has_explanation = false;
-    let mut j = i + 1;
-    while j < lines.len() {
-        let next_line = lines[j].trim();
-        if next_line == "--" {
-            break;
-        }
-        if !next_line.is_empty() {
-            has_explanation = true;
-            break;
-        }
-        j += 1;
-    }
-
-    Some((
-        Mantra {
-            text: mantra_text,
-            file: file_name.to_string(),
-            line: start + 1,
-            has_explanation,
-            is_template,
-        },
-        i,
-        has_explanation,
-    ))
-}
-
-fn parse_references(line: &str, file_name: &str, line_num: usize, repo: &mut Repository) {
+// Parse a single line for mantra definitions and references
+fn parse_line(line: &str, file_name: &str, line_num: usize, repo: &mut Repository) {
     let mut chars = line.chars().peekable();
     let mut in_backtick = false;
 
@@ -367,29 +234,69 @@ fn parse_references(line: &str, file_name: &str, line_num: usize, repo: &mut Rep
             continue;
         }
 
-        if c == '[' {
-            let mut ref_text = String::new();
-            let mut depth = 1;
+        // ^mantra definition^ or ^mantra^@kosha (external commentary)
+        if c == '^' {
+            let mut mantra_text = String::new();
 
             for c in chars.by_ref() {
-                if c == '[' {
-                    depth += 1;
-                    ref_text.push(c);
-                } else if c == ']' {
-                    depth -= 1;
-                    if depth == 0 {
-                        break;
-                    }
-                    ref_text.push(c);
-                } else {
-                    ref_text.push(c);
+                if c == '^' {
+                    break;
                 }
+                mantra_text.push(c);
+            }
+
+            let mantra_text = mantra_text.trim().to_string();
+            if !mantra_text.is_empty() {
+                // check for @kosha suffix (external commentary)
+                if chars.peek() == Some(&'@') {
+                    chars.next(); // consume @
+                    let mut kosha_name = String::new();
+                    for c in chars.by_ref() {
+                        if c.is_alphanumeric() || c == '-' || c == '_' {
+                            kosha_name.push(c);
+                        } else {
+                            break;
+                        }
+                    }
+                    if !kosha_name.is_empty() {
+                        // this is external commentary, not a local mantra definition
+                        repo.external_commentaries.push(ExternalCommentary {
+                            mantra_text,
+                            kosha: kosha_name,
+                            file: file_name.to_string(),
+                            line: line_num,
+                        });
+                    }
+                } else {
+                    // local mantra definition
+                    let is_template = mantra_text.contains('{') && mantra_text.contains('}');
+                    let has_explanation = line_has_commentary(line, &mantra_text);
+
+                    repo.mantras.insert(mantra_text.clone(), Mantra {
+                        text: mantra_text,
+                        file: file_name.to_string(),
+                        line: line_num,
+                        has_explanation,
+                        is_template,
+                    });
+                }
+            }
+        }
+
+        // ~reference~ with optional @kosha
+        if c == '~' {
+            let mut ref_text = String::new();
+
+            for c in chars.by_ref() {
+                if c == '~' {
+                    break;
+                }
+                ref_text.push(c);
             }
 
             let ref_text = ref_text.trim().to_string();
-            if !ref_text.is_empty() && depth == 0 {
-                // [mantra with kosha references look like {mantra}@{kosha-name}]
-                // check for @kosha suffix after the closing ]
+            if !ref_text.is_empty() {
+                // check for @kosha suffix
                 let mut kosha = None;
                 if chars.peek() == Some(&'@') {
                     chars.next(); // consume @
@@ -418,7 +325,25 @@ fn parse_references(line: &str, file_name: &str, line_num: usize, repo: &mut Rep
     }
 }
 
-// [mantra specifications can use string formatting templates for mantra with value]
+// Check if a line has text beyond just the mantra definition
+fn line_has_commentary(line: &str, mantra_text: &str) -> bool {
+    // remove the mantra definition from the line and check if there's other text
+    let pattern = format!("^{}^", mantra_text);
+    let remaining = line.replace(&pattern, "");
+    let trimmed = remaining.trim();
+
+    // has commentary if there's non-empty text that isn't just punctuation
+    !trimmed.is_empty() && trimmed.chars().any(|c| c.is_alphanumeric())
+}
+
+// ^mantra commentary can be in same para^ - mark mantras as explained if they have nearby commentary
+fn mark_explained_mantras(_repo: &mut Repository) {
+    // For now, mantras are marked as explained during parsing if they have
+    // text in the same line. A more sophisticated approach could look at
+    // the surrounding paragraph, but inline commentary is the primary case.
+    // The has_explanation field is already set in parse_line.
+}
+
 fn resolve_template_references(repo: &mut Repository) {
     let templates: Vec<_> = repo
         .mantras
@@ -445,8 +370,7 @@ fn resolve_template_references(repo: &mut Repository) {
     }
 }
 
-// [template placeholders can include example values as {name=example}]
-// extracts the variable name from a placeholder, stripping any =example suffix
+// ^template placeholders can include example values as {name=example}^
 fn extract_placeholder_name(placeholder_content: &str) -> &str {
     if let Some(eq_pos) = placeholder_content.find('=') {
         &placeholder_content[..eq_pos]
@@ -455,7 +379,6 @@ fn extract_placeholder_name(placeholder_content: &str) -> &str {
     }
 }
 
-// extracts the example value from a placeholder like {name=example}, returns None if no example
 fn extract_example_value(placeholder_content: &str) -> Option<&str> {
     if let Some(eq_pos) = placeholder_content.find('=') {
         Some(&placeholder_content[eq_pos + 1..])
@@ -464,25 +387,20 @@ fn extract_example_value(placeholder_content: &str) -> Option<&str> {
     }
 }
 
-// Stores info about each capture group in the template regex
 #[derive(Debug, Clone)]
 struct CaptureInfo {
-    placeholder_idx: usize,  // which placeholder this capture belongs to
-    full_placeholder: String, // e.g., "{employee=amitu}"
+    placeholder_idx: usize,
+    full_placeholder: String,
 }
 
-// Result of building a template regex - includes the regex and capture group info
 #[derive(Debug)]
 struct TemplateRegex {
     regex: Regex,
-    captures: Vec<CaptureInfo>, // info for each capture group (1-indexed in regex)
+    captures: Vec<CaptureInfo>,
 }
 
-// [when referencing a mantra with placeholder you can either use the reference with placeholder or (even partially) instantiated]
-// [example values appear literally in the mantra text]
 fn build_template_regex(template: &str) -> Option<TemplateRegex> {
-    // first pass: collect all placeholders and their example values
-    let mut placeholders: Vec<(usize, usize, String, Option<String>)> = Vec::new(); // (start, end, full_placeholder, example_value)
+    let mut placeholders: Vec<(usize, usize, String, Option<String>)> = Vec::new();
 
     for (start, _) in template.match_indices('{') {
         if let Some(end_offset) = template[start..].find('}') {
@@ -494,21 +412,15 @@ fn build_template_regex(template: &str) -> Option<TemplateRegex> {
         }
     }
 
-    // collect all positions that need capture groups
-    // each position stores: (start, end, placeholder_idx, full_placeholder)
     let mut captures: Vec<(usize, usize, usize, String)> = Vec::new();
 
-    // add placeholder positions
     for (idx, (start, end, full_placeholder, _)) in placeholders.iter().enumerate() {
         captures.push((*start, *end, idx, full_placeholder.clone()));
     }
 
-    // add example value literal occurrences (outside of placeholders)
     for (placeholder_idx, (_, _, full_placeholder, example)) in placeholders.iter().enumerate() {
         if let Some(ex) = example {
-            // find all occurrences of the example value in template
             for (pos, _) in template.match_indices(ex.as_str()) {
-                // skip if this occurrence is inside a placeholder
                 let inside_placeholder = placeholders.iter().any(|(s, e, _, _)| pos >= *s && pos <= *e);
                 if !inside_placeholder {
                     captures.push((pos, pos + ex.len() - 1, placeholder_idx, full_placeholder.clone()));
@@ -517,21 +429,17 @@ fn build_template_regex(template: &str) -> Option<TemplateRegex> {
         }
     }
 
-    // sort by position
     captures.sort_by_key(|(start, _, _, _)| *start);
 
-    // build the regex pattern - each position becomes a capture group
     let mut pattern = String::from("^");
     let mut last_end = 0;
     let mut capture_info: Vec<CaptureInfo> = Vec::new();
 
     for (start, end, placeholder_idx, full_placeholder) in &captures {
-        // add escaped literal part before this capture
         if *start > last_end {
             pattern.push_str(&regex::escape(&template[last_end..*start]));
         }
 
-        // capture group that matches any value OR the literal placeholder
         pattern.push_str(&format!("(.+?|{})", regex::escape(full_placeholder)));
         capture_info.push(CaptureInfo {
             placeholder_idx: *placeholder_idx,
@@ -541,7 +449,6 @@ fn build_template_regex(template: &str) -> Option<TemplateRegex> {
         last_end = end + 1;
     }
 
-    // add remaining literal part
     if last_end < template.len() {
         pattern.push_str(&regex::escape(&template[last_end..]));
     }
@@ -550,23 +457,19 @@ fn build_template_regex(template: &str) -> Option<TemplateRegex> {
     Regex::new(&pattern).ok().map(|regex| TemplateRegex { regex, captures: capture_info })
 }
 
-// Check if a reference matches a template, verifying consistent placeholder values
 fn matches_template(template_regex: &TemplateRegex, reference: &str) -> bool {
     if let Some(caps) = template_regex.regex.captures(reference) {
-        // verify that all captures for the same placeholder have the same value
         let mut placeholder_values: std::collections::HashMap<usize, &str> = std::collections::HashMap::new();
 
         for (i, info) in template_regex.captures.iter().enumerate() {
             if let Some(m) = caps.get(i + 1) {
                 let value = m.as_str();
-                // skip if it's the literal placeholder
                 if value == info.full_placeholder {
                     continue;
                 }
-                // check consistency
                 if let Some(&existing) = placeholder_values.get(&info.placeholder_idx) {
                     if existing != value {
-                        return false; // inconsistent values for same placeholder
+                        return false;
                     }
                 } else {
                     placeholder_values.insert(info.placeholder_idx, value);
@@ -582,12 +485,10 @@ fn matches_template(template_regex: &TemplateRegex, reference: &str) -> bool {
 fn extract_values_from_reference(template: &str, reference: &str) -> Vec<(String, String)> {
     let mut results = Vec::new();
 
-    // Build the template regex with capture info
     let Some(template_regex) = build_template_regex(template) else {
         return results;
     };
 
-    // collect placeholder info (variable name, full content) for each placeholder
     let mut placeholder_info: Vec<(String, String)> = Vec::new();
     for (start, _) in template.match_indices('{') {
         if let Some(end) = template[start..].find('}') {
@@ -598,25 +499,20 @@ fn extract_values_from_reference(template: &str, reference: &str) -> Vec<(String
         }
     }
 
-    // capture values from reference
     if let Some(caps) = template_regex.regex.captures(reference) {
-        // track which placeholder indices we've already extracted
         let mut extracted: std::collections::HashSet<usize> = std::collections::HashSet::new();
 
         for (i, info) in template_regex.captures.iter().enumerate() {
-            // only extract once per placeholder
             if extracted.contains(&info.placeholder_idx) {
                 continue;
             }
 
             if let Some(m) = caps.get(i + 1) {
                 let value = m.as_str().to_string();
-                // skip if value is the placeholder itself
                 if value == info.full_placeholder {
                     continue;
                 }
 
-                // get the variable name from placeholder_info
                 if let Some((var_name, _)) = placeholder_info.get(info.placeholder_idx) {
                     results.push((var_name.clone(), value));
                     extracted.insert(info.placeholder_idx);
@@ -645,17 +541,14 @@ fn find_repo_root(path: &Path) -> Option<std::path::PathBuf> {
     None
 }
 
-// [.vyasa/kosha.vyasa contains mantra with kosha references]
 fn load_kosha_config(repo_root: &Path) -> KoshaConfig {
     let mut config = KoshaConfig::default();
 
-    // load main kosha config
     let kosha_file = repo_root.join(".vyasa/kosha.vyasa");
     if let Ok(content) = fs::read_to_string(&kosha_file) {
         parse_kosha_aliases(&content, &mut config);
     }
 
-    // [.vyasa/kosha.local.vyasa, to be .gitignored stores local folders for each referenced kosha]
     let local_file = repo_root.join(".vyasa/kosha.local.vyasa");
     if let Ok(content) = fs::read_to_string(&local_file) {
         parse_kosha_local(&content, &mut config);
@@ -665,8 +558,8 @@ fn load_kosha_config(repo_root: &Path) -> KoshaConfig {
 }
 
 fn parse_kosha_aliases(content: &str, config: &mut KoshaConfig) {
-    // look for references matching [kosha-alias {alias}: {value}] pattern
-    let alias_pattern = Regex::new(r"\[kosha-alias\s+([^:]+):\s*([^\]]+)\]").ok();
+    // look for ~kosha-alias {alias}: {value}~ pattern
+    let alias_pattern = Regex::new(r"~kosha-alias\s+([^:]+):\s*([^~]+)~").ok();
 
     if let Some(re) = alias_pattern {
         for cap in re.captures_iter(content) {
@@ -681,8 +574,8 @@ fn parse_kosha_aliases(content: &str, config: &mut KoshaConfig) {
 }
 
 fn parse_kosha_local(content: &str, config: &mut KoshaConfig) {
-    // look for references matching [kosha-dir {alias}: {folder}] pattern
-    let dir_pattern = Regex::new(r"\[kosha-dir\s+([^:]+):\s*([^\]]+)\]").ok();
+    // look for ~kosha-dir {alias}: {folder}~ pattern
+    let dir_pattern = Regex::new(r"~kosha-dir\s+([^:]+):\s*([^~]+)~").ok();
 
     if let Some(re) = dir_pattern {
         for cap in re.captures_iter(content) {

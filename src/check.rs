@@ -2,12 +2,11 @@ use crate::parser::Repository;
 use std::collections::HashSet;
 use std::path::Path;
 
-// [vyasa check exits with non zero exit code if any rule is violated]
+// ^vyasa check exits with non zero exit code if any rule is violated^
 pub fn run(path: &Path) -> Result<(), String> {
     let repo = Repository::parse(path)?;
 
     let unexplained = repo.unexplained_mantras();
-    let spacing_violations = &repo.spacing_violations;
 
     let mut has_errors = false;
     let mut error_counts = Vec::new();
@@ -21,12 +20,12 @@ pub fn run(path: &Path) -> Result<(), String> {
         );
         for mantra in &unexplained {
             println!("  {}:{}", mantra.file, mantra.line);
-            println!("    {}\n", truncate(&mantra.text, 60));
+            println!("    ^{}^\n", truncate(&mantra.text, 60));
         }
         error_counts.push(format!("{} unexplained mantras", unexplained.len()));
     }
 
-    // [vyasa check reports undefined references]
+    // ^vyasa check reports undefined references^
     let undefined_refs = check_undefined_references(&repo);
     if !undefined_refs.is_empty() {
         has_errors = true;
@@ -36,26 +35,12 @@ pub fn run(path: &Path) -> Result<(), String> {
         );
         for (file, line, text) in &undefined_refs {
             println!("  {}:{}", file, line);
-            println!("    [{}]\n", truncate(text, 60));
+            println!("    ~{}~\n", truncate(text, 60));
         }
         error_counts.push(format!("{} undefined references", undefined_refs.len()));
     }
 
-    // [before / after -- must contain at least one empty line, unless at start/end of file]
-    if !spacing_violations.is_empty() {
-        has_errors = true;
-        println!(
-            "found {} spacing violations:\n",
-            spacing_violations.len()
-        );
-        for violation in spacing_violations {
-            println!("  {}:{}", violation.file, violation.line);
-            println!("    {}\n", violation.message);
-        }
-        error_counts.push(format!("{} spacing violations", spacing_violations.len()));
-    }
-
-    // [kosha check verifies all kosha references]
+    // ^kosha check verifies all kosha references^
     let kosha_errors = check_kosha_references(&repo);
     if !kosha_errors.is_empty() {
         has_errors = true;
@@ -74,7 +59,7 @@ pub fn run(path: &Path) -> Result<(), String> {
     }
 }
 
-// [kosha check verifies all kosha references]
+// ^kosha check verifies all kosha references^
 fn check_kosha_references(repo: &Repository) -> Vec<String> {
     let mut errors = Vec::new();
 
@@ -100,7 +85,7 @@ fn check_kosha_references(repo: &Repository) -> Vec<String> {
             // check if alias is defined
             if !defined_aliases.contains(kosha_name.as_str()) {
                 errors.push(format!(
-                    "{}:{}: undefined kosha '{}' in [{}]@{}",
+                    "{}:{}: undefined kosha '{}' in ~{}~@{}",
                     reference.file,
                     reference.line,
                     kosha_name,
@@ -116,7 +101,6 @@ fn check_kosha_references(repo: &Repository) -> Vec<String> {
                     || alias.value.starts_with("./")
                     || alias.value.starts_with("../");
 
-                // [kosha.local.vyasa is required if kosha.vyasa refers to a non folder kosha, optional otherwise]
                 if !is_folder && !local_dirs.contains(kosha_name.as_str()) {
                     errors.push(format!(
                         "kosha '{}' refers to '{}' but no local folder defined in kosha.local.vyasa",
@@ -145,7 +129,7 @@ fn check_kosha_references(repo: &Repository) -> Vec<String> {
     errors
 }
 
-// [vyasa check reports undefined references]
+// ^vyasa check reports undefined references^
 fn check_undefined_references(repo: &Repository) -> Vec<(String, usize, String)> {
     let mut undefined = Vec::new();
 

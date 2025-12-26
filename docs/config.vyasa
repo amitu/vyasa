@@ -1,22 +1,10 @@
---
-.vyasa/config.vyasa file can use mantra reference
---
+^.vyasa/config.vyasa can reference mantras^ - the config file lives at
+.vyasa/config.vyasa in your repository. it can reference mantras to configure
+vyasa's behavior, making configuration itself expressed in mantra form.
 
-the config file lives at .vyasa/config.vyasa in your repository root. it can
-reference mantras to configure vyasa's behavior. this means your configuration
-is itself expressed in mantra form.
+^config file is optional^ - vyasa works without config using sensible defaults.
+the config file lets you customize behavior when needed.
 
---
-config file is optional
---
-
-vyasa works without a config file using sensible defaults. the config file
-lets you customize behavior when needed.
-
---
-config references are validated
---
-
-when you reference a mantra in config.vyasa, vyasa verifies that mantra
-exists in your repository. this catches typos and ensures your configuration
+^config references are validated^ - when you reference a mantra in config.vyasa,
+vyasa verifies the mantra exists. this catches typos and ensures configuration
 references real knowledge.

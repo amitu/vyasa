@@ -1,54 +1,21 @@
---
-vyasa values cli can query placeholder in file/directory, and filter mantras or even keys
---
+^vyasa values queries placeholder values^ - the values command extracts all
+instantiated placeholder values from template mantra references. see what
+concrete values are used throughout your repository.
 
-the values command extracts all instantiated placeholder values from template
-mantra references. this lets you see what concrete values are being used
-throughout your repository.
+^values path is optional^ - the path argument can be file, folder, or pattern.
+defaults to current directory. examples: `vyasa values ./docs`.
 
---
-vyasa mantra filename is optional, can be folder or pattern
---
+^values groups results by template and key^ - output is organized by template
+mantra, then by placeholder key. each key shows unique values and locations.
 
-the path argument can be a file, folder, or glob pattern. if omitted, it
-defaults to the current directory. examples: `vyasa values ./docs`,
-`vyasa values ./docs/templates.vyasa`.
+^values --mantra filters by template^ - use `--mantra='[template]'` to filter
+results to a specific template mantra.
 
---
-values groups results by template and key
---
+^values --key filters by placeholder^ - use `--key=placeholder` to show only
+values for a specific placeholder across all templates.
 
-output is organized first by template mantra, then by placeholder key within
-that template. for each key, it shows the unique values found and where they
-were first referenced.
+^values shows file and line for each value^ - each extracted value includes
+file path and line number for tracing values back to usage context.
 
---
-values --mantra filters by exact mantra reference
---
-
-use the -m or --mantra flag with a mantra reference to filter results.
-the mantra should be in bracket notation: `vyasa values --mantra="[user: {username}]"`.
-the brackets are optional: `vyasa values --mantra="user: {username}"` also works.
-
---
-values --key filters by placeholder key name
---
-
-use the -k or --key flag to filter results to a specific placeholder key.
-for example, `vyasa values --key=username` shows only values bound to the
-{username} placeholder across all templates.
-
---
-values shows file and line for each value
---
-
-each extracted value includes the file path and line number where it was
-first used. this helps you trace values back to their usage context.
-
---
-values deduplicates values per key
---
-
-if the same value appears multiple times for the same placeholder, it's
-shown only once with the location of its first occurrence. the count of
-unique values is displayed for each key.
+^values deduplicates by key^ - same value appearing multiple times for same
+placeholder is shown once with first occurrence location.

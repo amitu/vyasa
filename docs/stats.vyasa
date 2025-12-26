@@ -1,82 +1,32 @@
---
-vyasa stats shows repository statistics
---
+^vyasa stats displays repository statistics^ - the stats command gives an overview
+of your knowledge base: mantra counts, reference counts, and distribution.
 
-the stats command gives you an overview of your knowledge repository.
-it counts mantras, explanations, references, and shows usage patterns.
+^stats displays total mantra count^ - the number of unique mantras defined across
+all .vyasa and .md files in the repository.
 
---
-stats displays mantra count
---
+^stats displays explanation count^ - how many mantras have at least one explanation.
+ideally this equals the mantra count (all mantras explained).
 
-the first statistic shown is the total number of unique mantras defined
-in the repository. each mantra is counted once, even if explained in
-multiple places.
+^stats displays reference count^ - the total number of times mantras are referenced
+using ~mantra~ syntax. a mantra referenced five times adds five to this count.
 
---
-stats displays explanation count
---
+^stats displays unreferenced mantra count^ - mantras that exist but are never
+referenced anywhere. high numbers might indicate orphaned knowledge.
 
-this shows how many mantras have at least one explanation. ideally this
-equals the mantra count - if not, run [vyasa check verifies all mantras
-have explanations] to find the gaps.
+^stats shows reference distribution histogram^ - a visual histogram showing how
+references are distributed. some mantras are heavily referenced, others rarely.
 
---
-stats displays reference count
---
+^histogram uses max 10 buckets^ - the distribution groups reference counts into
+at most 10 buckets. actual bucket count depends on the data range.
 
-the total number of times mantras are referenced using `[square bracket]`
-syntax. a mantra referenced five times in different places adds five to
-this count.
+^empty edge buckets are hidden^ - if the first or last buckets have zero entries,
+they're omitted for cleaner output.
 
---
-stats displays unreferenced mantra count
---
+^stats accepts a path argument^ - like check, you can pass a path to analyze a
+specific folder: `vyasa stats ./docs`.
 
-mantras that are defined and explained but never referenced elsewhere.
-these might be foundational concepts or possibly orphaned knowledge that
-could be pruned.
+^stats shows bucket ranges^ - each histogram row shows the reference count range
+(e.g., "1-3 refs") and a bar proportional to how many mantras fall in that range.
 
---
-stats shows popular mantras with more than 10 references
---
-
-if any mantras have been referenced more than 10 times, they're listed
-separately as "popular mantras". these are your core concepts - the ideas
-that recur throughout your knowledge base.
-
---
-stats shows a reference histogram
---
-
-the histogram groups mantras by how often they're referenced. by default
-it uses up to 10 buckets, but you can customize this with --buckets.
-
---
-histogram buckets adapt to the data
---
-
-[histogram uses at most N buckets where N is configurable]. if your max
-reference count is 3, you'll only see 3 buckets, not 10 empty ones.
-
---
-histogram uses at most N buckets where N is configurable
---
-
-pass --buckets to control the maximum bucket count: `vyasa stats --buckets 5`.
-the histogram will use fewer buckets if the data range is smaller.
-
---
-histogram trims empty edge buckets
---
-
-empty buckets at the start and end of the histogram are hidden. only
-empty buckets between non-empty ones are shown, making the output cleaner.
-
---
-stats --buckets 0 shows individual counts
---
-
-when you set buckets to zero, vyasa skips the histogram entirely and
-lists each referenced mantra with its exact reference count, sorted from
-most to least referenced.
+^bucket width adapts to data^ - if all mantras have 1-5 references, buckets might
+be 1-1, 2-2, etc. if range is 1-100, buckets might be 1-10, 11-20, etc.
