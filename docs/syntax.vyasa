@@ -35,7 +35,7 @@ nested brackets are supported in references
 --
 
 if your mantra contains brackets, vyasa tracks bracket depth. a reference
-like [some [nested] text] will correctly capture "some [nested] text" as
+like `[some [nested] text]` will correctly capture `some [nested] text` as
 the reference.
 
 --
@@ -96,6 +96,35 @@ placeholders are written as {identifier} where identifier is a name. when
 referencing, you substitute the placeholder with an actual value. the mantra
 [mantra specifications can use string formatting templates for mantra with value]
 enables powerful parameterized knowledge.
+
+--
+template placeholders can include example values as {name=example}
+--
+
+to make generic mantras more comprehensible, you can include an example value
+in the placeholder itself. this has no parsing implications - it's purely for
+human readability. the example value lets you write the mantra in concrete
+language while keeping it parameterized.
+
+--
+example values in placeholders avoid repetitive generality
+--
+
+without example values, you'd write: "when {employee} joins, employee should
+be added to github" - awkward and requires mental substitution. with example
+values: "when {employee=amitu} joins, amitu should be added to github" reads
+naturally. the mantra is still generic (parameterizable over any employee),
+but reads as a concrete, understandable statement.
+
+--
+example values appear literally in the mantra text
+--
+
+in [when {employee=amitu} joins, amitu should be added to github], the value
+"amitu" appears both in the placeholder and literally in the text. when
+referenced as [when jack joins, jack should be added to github], vyasa
+matches this against the template by substituting "jack" everywhere "amitu"
+appeared.
 
 --
 when referencing a mantra with placeholder you can either use the reference with placeholder or (even partially) instantiated

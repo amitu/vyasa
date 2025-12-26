@@ -27,3 +27,15 @@ with placeholders (referring to the template itself):
 partially instantiated:
 - [config: debug = {value}] - key is "debug", value varies
 - [config: {key} = true] - any key that's set to true
+
+--
+when {employee=amitu} joins, amitu should be added to github
+--
+
+this template uses the example value syntax. "amitu" appears both in the
+placeholder {employee=amitu} and literally in the mantra text. the mantra
+reads naturally while remaining parameterizable.
+
+when referenced as [when jack joins, jack should be added to github], vyasa
+recognizes this as an instance with employee=jack. the example value has no
+special parsing behavior - it just makes the mantra self-documenting.

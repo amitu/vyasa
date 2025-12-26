@@ -1,4 +1,11 @@
 --
+every mantra needs at least one explanation
+--
+
+a mantra without an explanation is incomplete. the explanation provides
+context, examples, and reasoning that help others understand the mantra.
+
+--
 vyasa check verifies all mantras have explanations
 --
 
@@ -44,3 +51,11 @@ check accepts a path argument
 by default, vyasa check scans the current directory. you can pass a path
 to check a specific folder or file: `vyasa check ./docs` or even
 `vyasa check ./docs/syntax.vyasa`.
+
+--
+vyasa check reports undefined references
+--
+
+every reference must match a defined mantra - either exactly or through
+template matching. if a reference like `[some undefined mantra]` appears
+but no matching mantra exists, check reports it as an error.

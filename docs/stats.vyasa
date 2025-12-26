@@ -25,7 +25,7 @@ have explanations] to find the gaps.
 stats displays reference count
 --
 
-the total number of times mantras are referenced using [square bracket]
+the total number of times mantras are referenced using `[square bracket]`
 syntax. a mantra referenced five times in different places adds five to
 this count.
 

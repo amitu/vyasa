@@ -53,7 +53,7 @@ each mantra starts and ends with lines containing --
 ```
 
 here we've created a mantra. to reference it elsewhere, we spell it out exactly:
-[each mantra starts and ends with lines containing --].
+`[each mantra starts and ends with lines containing --]`.
 
 ### why no identifiers?
 
@@ -66,7 +66,7 @@ mantras must be spelled out in full at each reference
 --
 ```
 
-[e = mc^2] is probably clearer than [some-arbitrary-name-for-einstein-formula]
+`[e = mc^2]` is probably clearer than `[some-arbitrary-name-for-einstein-formula]`
 anyway. the exact wording *is* the identifier.
 
 ### mantra explanations

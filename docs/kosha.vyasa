@@ -1,0 +1,105 @@
+--
+.vyasa/kosha.vyasa contains mantra with kosha references
+--
+
+the kosha configuration file lives at `.vyasa/kosha.vyasa` in your repository
+root. it defines aliases for external knowledge repositories that you want
+to reference in your mantras.
+
+--
+mantra with kosha references look like {mantra}@{kosha-name}
+--
+
+to reference a mantra from another kosha, append @kosha-name after the
+closing bracket. for example, referencing "e = mc^2" from a kosha called
+"physics" would look like: open-bracket, mantra text, close-bracket, @physics.
+this creates cross-repository knowledge links.
+
+--
+kosha-alias {kosha-alias}: {kosha-value}
+--
+
+defines an alias for an external kosha. the alias is a short name you'll use
+in @references, and the value specifies where to find the kosha.
+
+--
+kosha-value can be a folder path or a git repo or fastn-kosha reference
+--
+
+kosha values support multiple formats:
+- local folder: `/path/to/knowledge` or `../sibling-repo`
+- git repository: `github.com/user/repo` or `git@github.com:user/repo.git`
+- fastn-kosha: `fastn://kosha-name` (p2p distributed knowledge)
+
+--
+.vyasa/kosha.local.vyasa, to be .gitignored stores local folders for each referenced kosha
+--
+
+the local kosha file overrides remote kosha locations with local paths. this
+lets you work with local checkouts of repositories during development without
+modifying the shared kosha.vyasa configuration.
+
+--
+kosha-dir {kosha-alias}: {folder-name}
+--
+
+maps a kosha alias to a local folder path. this entry in kosha.local.vyasa
+overrides the kosha-value from kosha.vyasa, useful for local development.
+
+example: if kosha.vyasa defines physics as github.com/user/physics
+and kosha.local.vyasa maps physics to /home/user/dev/physics,
+then a reference to a mantra @physics will look in the local folder.
+
+--
+kosha.local.vyasa can overwrite also a kosha referred via directory path
+--
+
+even if kosha.vyasa points to a folder like `../sibling-repo`, you can
+override it in kosha.local.vyasa with a different local path. this is
+useful when your local folder structure differs from the expected layout.
+
+--
+kosha.local.vyasa is required if kosha.vyasa refers to a non folder kosha, optional otherwise
+--
+
+if kosha.vyasa references a git repo or fastn-kosha (not a local folder),
+vyasa cannot resolve the reference until you provide a local path in
+kosha.local.vyasa. for folder references, kosha.local.vyasa is optional
+since the folder can be used directly.
+
+--
+kosha check verifies all kosha references
+--
+
+the check command validates kosha references:
+- all @kosha-name references must have a matching kosha-alias defined
+- non-folder koshas must have a kosha-dir mapping in kosha.local.vyasa
+- local folder paths must exist on disk
+- referenced mantras must exist in the referred kosha
+
+--
+when checking mantra with kosha references, referred mantra must exist in the referred kosha
+--
+
+vyasa loads the referenced kosha and verifies the mantra exists there. if
+the mantra is not found in the external kosha, check reports an error. this
+ensures cross-repository references stay valid.
+
+--
+kosha check recursively checks all references part of mantra commentary
+--
+
+when you reference a mantra from an external kosha, vyasa doesn't verify
+the entire kosha - only what's downstream of your reference. the referenced
+mantra's explanation may contain further references, and those must also
+exist. if those references point to other koshas, those koshas must be
+checked out and recursively verified.
+
+--
+you can't verify all of a kosha, but any downstream reference must be verified
+--
+
+if you reference one mantra @physics, you don't need all of physics checked
+out. but the explanation of that mantra, and any mantras it references, and
+their explanations, form a dependency chain that must be fully resolvable.
+this ensures your knowledge base is complete for what you actually use.
