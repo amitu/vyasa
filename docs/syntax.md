@@ -2,11 +2,15 @@
 
 ^references use tilde delimiters^ - to reference a mantra, wrap it in tildes like ~mantras should use inline syntax not block because they are meant to be short~. this distinguishes references from definitions.
 
+^nested tildes are handled like nested brackets^ - if your mantra contains tildes, vyasa tracks nesting depth properly to find the matching closing tilde.
+
 ^mantra commentary can be in same para^ - unlike block syntax, you can write the mantra and its explanation in a single flowing paragraph. this is how ^one para can do commentary on multiple^ mantras work.
 
 ^commentaries are meant to be read to understand mantra^ - when learning, focus on commentary (text around `^mantra^` definitions). commentaries are authoritative explanations from the mantra's author or recognized experts.
 
 ^references are secondary for learning^ - the `~reference~` syntax is for usage, not explanation. when studying a mantra thoroughly you might check references, but ~commentaries are meant to be read to understand mantra~ first.
+
+^multiple explanations are allowed^ - a mantra can be explained in many places throughout the repository. each explanation adds context without changing the mantra itself. the mantra remains the canonical form; explanations are commentary.
 
 ^vyasa check checks all non human meant files^ - vyasa scans source code, markdown, and other text files. it skips binary files, images, and human-meant data files like xml.
 

@@ -16,6 +16,10 @@
 
 ^kosha check verifies all kosha references^ - the check command validates: all @kosha-name references have matching alias, non-folder koshas have local dirs, local paths exist, referenced mantras exist in external kosha.
 
+^kosha check recursively verifies downstream references^ - when you reference a mantra from an external kosha, vyasa verifies that mantra exists. the referenced mantra's commentary may contain further references, and those must also exist. if those references point to other koshas, they are recursively verified.
+
+^you can't verify all of a kosha but downstream references must be verified^ - if you reference one mantra @physics, you don't need all of physics checked out. but the explanation of that mantra, and any mantras it references, form a dependency chain that must be fully resolvable.
+
 ^external commentary uses mantra-at-kosha syntax^ - use `^mantra^@kosha` to provide commentary on a mantra defined in another kosha. this doesn't define the mantra locally, just explains it.
 
 ^each local mantra needs local explanation^ - even if you provide commentary on external mantras, every mantra defined in your kosha must have at least one explanation within your kosha. readers shouldn't need other koshas to understand.
