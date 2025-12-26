@@ -2,7 +2,7 @@ use crate::parser::Repository;
 use std::collections::HashSet;
 use std::path::Path;
 
-// ^vyasa check exits with non zero exit code if any rule is violated^
+// ~vyasa check exits with non zero exit code if any rule is violated~
 pub fn run(path: &Path) -> Result<(), String> {
     let repo = Repository::parse(path)?;
 
@@ -25,7 +25,7 @@ pub fn run(path: &Path) -> Result<(), String> {
         error_counts.push(format!("{} unexplained mantras", unexplained.len()));
     }
 
-    // ^vyasa check reports undefined references^
+    // ~vyasa check reports undefined references~
     let undefined_refs = check_undefined_references(&repo);
     if !undefined_refs.is_empty() {
         has_errors = true;
@@ -40,7 +40,7 @@ pub fn run(path: &Path) -> Result<(), String> {
         error_counts.push(format!("{} undefined references", undefined_refs.len()));
     }
 
-    // ^kosha check verifies all kosha references^
+    // ~kosha check verifies all kosha references~
     let kosha_errors = check_kosha_references(&repo);
     if !kosha_errors.is_empty() {
         has_errors = true;
@@ -59,7 +59,7 @@ pub fn run(path: &Path) -> Result<(), String> {
     }
 }
 
-// ^kosha check verifies all kosha references^
+// ~kosha check verifies all kosha references~
 fn check_kosha_references(repo: &Repository) -> Vec<String> {
     let mut errors = Vec::new();
 
@@ -129,7 +129,7 @@ fn check_kosha_references(repo: &Repository) -> Vec<String> {
     errors
 }
 
-// ^vyasa check reports undefined references^
+// ~vyasa check reports undefined references~
 fn check_undefined_references(repo: &Repository) -> Vec<(String, usize, String)> {
     let mut undefined = Vec::new();
 

@@ -13,7 +13,7 @@ pub struct Mantra {
     pub is_template: bool,
 }
 
-// ^mantra^@kosha provides commentary on external mantra
+// `^mantra^@kosha` provides commentary on external mantra
 #[derive(Debug, Clone)]
 pub struct ExternalCommentary {
     pub mantra_text: String,
@@ -28,18 +28,18 @@ pub struct Reference {
     pub file: String,
     pub line: usize,
     pub matched_template: Option<String>,
-    // ~mantra~@kosha-name for external references
+    // `~mantra~@kosha-name` for external references
     pub kosha: Option<String>,
 }
 
-// ^kosha-alias {kosha-alias}: {kosha-value}^
+// ~kosha-alias {kosha-alias}: {kosha-value}~
 #[derive(Debug, Clone)]
 pub struct KoshaAlias {
     pub alias: String,
     pub value: String,
 }
 
-// ^kosha-dir {kosha-alias}: {folder-name}^
+// ~kosha-dir {kosha-alias}: {folder-name}~
 #[derive(Debug, Clone)]
 pub struct KoshaDir {
     pub alias: String,
@@ -61,7 +61,7 @@ pub struct Repository {
 }
 
 impl Repository {
-    // ^.vyasa and .md are both allowed^
+    // ~vyasa check checks all non human meant files~
     pub fn parse(path: &Path) -> Result<Self, String> {
         let mut repo = Repository::default();
 
@@ -86,9 +86,10 @@ impl Repository {
                 continue;
             }
 
-            // ^.vyasa and .md are both allowed^
-            let ext = file_path.extension().and_then(|e| e.to_str());
-            if !matches!(ext, Some("vyasa") | Some("md")) {
+            // ~vyasa check checks all non human meant files~
+            // skip binary and human-meant files (xml, images, etc.)
+            let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            if should_skip_file(ext) {
                 continue;
             }
 
@@ -196,7 +197,7 @@ pub struct PlaceholderValue {
     pub line: usize,
 }
 
-// ^mantras should use inline syntax not block because they are meant to be short^
+// ~mantras should use inline syntax not block because they are meant to be short~
 fn parse_file(content: &str, file_name: &str, repo: &mut Repository) {
     let lines: Vec<&str> = content.lines().collect();
     let mut in_code_block = false;
@@ -336,7 +337,7 @@ fn line_has_commentary(line: &str, mantra_text: &str) -> bool {
     !trimmed.is_empty() && trimmed.chars().any(|c| c.is_alphanumeric())
 }
 
-// ^mantra commentary can be in same para^ - mark mantras as explained if they have nearby commentary
+// ~mantra commentary can be in same para~ - mark mantras as explained if they have nearby commentary
 fn mark_explained_mantras(_repo: &mut Repository) {
     // For now, mantras are marked as explained during parsing if they have
     // text in the same line. A more sophisticated approach could look at
@@ -370,7 +371,7 @@ fn resolve_template_references(repo: &mut Repository) {
     }
 }
 
-// ^template placeholders can include example values as {name=example}^
+// ~template placeholders can include example values as {name=example}~
 fn extract_placeholder_name(placeholder_content: &str) -> &str {
     if let Some(eq_pos) = placeholder_content.find('=') {
         &placeholder_content[..eq_pos]
@@ -524,6 +525,30 @@ fn extract_values_from_reference(template: &str, reference: &str) -> Vec<(String
     results
 }
 
+// ~vyasa check checks all non human meant files~
+// human-meant: configs, data files, binaries - skip these
+// source code and docs: scan for mantras
+fn should_skip_file(ext: &str) -> bool {
+    matches!(ext.to_lowercase().as_str(),
+        // binary/compiled
+        "exe" | "dll" | "so" | "dylib" | "o" | "a" | "class" | "pyc" | "pyo" |
+        // images
+        "png" | "jpg" | "jpeg" | "gif" | "bmp" | "ico" | "svg" | "webp" |
+        // audio/video
+        "mp3" | "mp4" | "wav" | "avi" | "mov" | "mkv" |
+        // archives
+        "zip" | "tar" | "gz" | "bz2" | "7z" | "rar" |
+        // human-meant data/config (often auto-generated or verbose)
+        "xml" | "plist" | "pbxproj" |
+        // fonts
+        "ttf" | "otf" | "woff" | "woff2" |
+        // documents (human-readable but not code)
+        "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" |
+        // lock files
+        "lock"
+    )
+}
+
 fn find_repo_root(path: &Path) -> Option<std::path::PathBuf> {
     let mut current = if path.is_file() {
         path.parent().map(|p| p.to_path_buf())
@@ -544,12 +569,14 @@ fn find_repo_root(path: &Path) -> Option<std::path::PathBuf> {
 fn load_kosha_config(repo_root: &Path) -> KoshaConfig {
     let mut config = KoshaConfig::default();
 
-    let kosha_file = repo_root.join(".vyasa/kosha.vyasa");
+    // ~.vyasa/kosha.md contains kosha configuration~
+    let kosha_file = repo_root.join(".vyasa/kosha.md");
     if let Ok(content) = fs::read_to_string(&kosha_file) {
         parse_kosha_aliases(&content, &mut config);
     }
 
-    let local_file = repo_root.join(".vyasa/kosha.local.vyasa");
+    // ~.vyasa/kosha.local.md stores local folder overrides~
+    let local_file = repo_root.join(".vyasa/kosha.local.md");
     if let Ok(content) = fs::read_to_string(&local_file) {
         parse_kosha_local(&content, &mut config);
     }

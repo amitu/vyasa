@@ -83,7 +83,11 @@ knowledge representation.
 ## documentation
 
 detailed docs in `docs/` folder, written in mantra form:
-- `syntax.vyasa` - full syntax reference
-- `philosophy.vyasa` - why mantras work this way
-- `check.vyasa`, `stats.vyasa`, `values.vyasa` - command documentation
-- `kosha.vyasa` - external repository references
+- `syntax.md` - full syntax reference
+- `philosophy.md` - why mantras work this way
+- `check.md`, `stats.md`, `values.md` - command documentation
+- `kosha.md` - external repository references
+
+^vyasa check checks all non human meant files^ - scans source code, markdown, etc. skips binaries, images, xml.
+
+^commentaries can and encouraged to exist in source files^ - mantras in code comments trace knowledge to implementation.

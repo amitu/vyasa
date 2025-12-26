@@ -27,4 +27,4 @@ target
 /target
 
 # Local kosha overrides (user-specific paths)
-.vyasa/kosha.local.vyasa
+.vyasa/kosha.local.md

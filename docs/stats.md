@@ -2,13 +2,13 @@
 of your knowledge base: mantra counts, reference counts, and distribution.
 
 ^stats displays total mantra count^ - the number of unique mantras defined across
-all .vyasa and .md files in the repository.
+all scanned files in the repository.
 
 ^stats displays explanation count^ - how many mantras have at least one explanation.
 ideally this equals the mantra count (all mantras explained).
 
 ^stats displays reference count^ - the total number of times mantras are referenced
-using ~mantra~ syntax. a mantra referenced five times adds five to this count.
+using `~mantra~` syntax. a mantra referenced five times adds five to this count.
 
 ^stats displays unreferenced mantra count^ - mantras that exist but are never
 referenced anywhere. high numbers might indicate orphaned knowledge.
