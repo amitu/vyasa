@@ -1,15 +1,18 @@
 use crate::parser::Repository;
 use std::path::Path;
 
+// [vyasa check exits with non zero exit code if any rule is violated]
 pub fn run(path: &Path) -> Result<(), String> {
     let repo = Repository::parse(path)?;
 
     let unexplained = repo.unexplained_mantras();
+    let spacing_violations = &repo.spacing_violations;
 
-    if unexplained.is_empty() {
-        println!("all {} mantras have explanations", repo.mantras.len());
-        Ok(())
-    } else {
+    let mut has_errors = false;
+
+    // check for unexplained mantras
+    if !unexplained.is_empty() {
+        has_errors = true;
         println!(
             "found {} mantras without explanations:\n",
             unexplained.len()
@@ -18,10 +21,33 @@ pub fn run(path: &Path) -> Result<(), String> {
             println!("  {}:{}", mantra.file, mantra.line);
             println!("    {}\n", truncate(&mantra.text, 60));
         }
-        Err(format!(
-            "{} mantras missing explanations",
-            unexplained.len()
-        ))
+    }
+
+    // [before / after -- must contain at least one empty line, unless at start/end of file]
+    if !spacing_violations.is_empty() {
+        has_errors = true;
+        println!(
+            "found {} spacing violations:\n",
+            spacing_violations.len()
+        );
+        for violation in spacing_violations {
+            println!("  {}:{}", violation.file, violation.line);
+            println!("    {}\n", violation.message);
+        }
+    }
+
+    if has_errors {
+        let mut errors = Vec::new();
+        if !unexplained.is_empty() {
+            errors.push(format!("{} unexplained mantras", unexplained.len()));
+        }
+        if !spacing_violations.is_empty() {
+            errors.push(format!("{} spacing violations", spacing_violations.len()));
+        }
+        Err(errors.join(", "))
+    } else {
+        println!("all {} mantras validated successfully", repo.mantras.len());
+        Ok(())
     }
 }
 

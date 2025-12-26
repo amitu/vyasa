@@ -113,6 +113,64 @@ vyasa assists this process, though only a little. it can't do much beyond:
 - showing how mantras have been added over time (git and kosha aware)
 - tracing mantra additions and changes in a limited way
 
+## commands
+
+```vyasa
+--
+vyasa check verifies all mantras have explanations
+--
+
+the check command scans your repository and reports any mantras that lack
+explanations. [every mantra needs at least one explanation], and this command
+enforces that rule.
+
+--
+vyasa stats shows repository statistics
+--
+
+the stats command provides an overview of your knowledge repository: how many
+mantras exist, how many have explanations, reference counts, and a histogram
+showing which mantras are referenced most frequently.
+
+--
+vyasa values cli can query placeholder in file/directory, and filter mantras or even keys
+--
+
+the values command extracts instantiated placeholder values from template
+references. filter by template with -t or by key with -k.
+```
+
+### usage examples
+
+```bash
+# check the current directory
+vyasa check
+
+# check a specific path
+vyasa check ./docs
+
+# show stats with default histogram (max 10 buckets)
+vyasa stats
+
+# show stats with custom bucket count
+vyasa stats --buckets 5
+
+# show individual reference counts (no bucketing)
+vyasa stats --buckets 0
+
+# show all placeholder values
+vyasa values
+
+# filter by mantra reference
+vyasa values --mantra="[user: {username}]"
+
+# filter by placeholder key
+vyasa values --key=username
+
+# combine mantra and key filter on specific file
+vyasa values --mantra="[config: {key} = {value}]" --key=key ./docs
+```
+
 ### the real tool is discipline
 
 ```vyasa
@@ -125,3 +183,7 @@ ideally you'd practice this approach without the tool at all. vyasa is more a
 reminder of a mental discipline than software doing something for you. the value
 is in the habit of careful, minimal, canonical knowledge representation - not in
 the tool that checks your work.
+
+## documentation
+
+detailed documentation is available in the `docs/` folder, written in mantra form.

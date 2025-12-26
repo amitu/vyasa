@@ -1,0 +1,120 @@
+--
+mantras are delimited by lines containing only --
+--
+
+a mantra begins with a line containing exactly two dashes and nothing else.
+it ends with another such line. everything between these delimiters is the
+mantra text.
+
+--
+mantra text is trimmed of leading and trailing whitespace
+--
+
+when vyasa parses a mantra, it trims whitespace from the beginning and end.
+this means indentation inside the delimiters doesn't affect the mantra's
+identity.
+
+--
+empty mantras are ignored
+--
+
+if there's nothing between the -- delimiters (or only whitespace), vyasa
+treats it as if no mantra was defined. [mantras are delimited by lines
+containing only --] but the content between them must be non-empty.
+
+--
+references use square brackets
+--
+
+to reference a mantra, wrap its exact text in square brackets like this:
+[mantras are delimited by lines containing only --]. the text inside must
+match exactly - including capitalization and punctuation.
+
+--
+nested brackets are supported in references
+--
+
+if your mantra contains brackets, vyasa tracks bracket depth. a reference
+like [some [nested] text] will correctly capture "some [nested] text" as
+the reference.
+
+--
+.vyasa and .md are both allowed
+--
+
+vyasa processes files with .vyasa and .md extensions. the .vyasa extension
+is preferred for pure knowledge files, while .md allows mixing mantras with
+regular markdown documentation.
+
+--
+markdown code blocks are skipped
+--
+
+in .md files, content inside triple-backtick code blocks is ignored. this
+lets you include vyasa syntax examples in documentation without them being
+parsed as actual mantras.
+
+--
+before / after -- must contain at least one empty line, unless at start/end of file
+--
+
+mantra delimiters need breathing room. if a -- appears in the middle of a
+file, there must be an empty line before it (unless it's the first line)
+and after the closing -- (unless it's the last line or followed by another
+mantra). this keeps mantras visually distinct from explanations.
+
+--
+explanations follow mantras
+--
+
+any non-empty text after a mantra's closing -- and before the next mantra
+is considered an explanation. [every mantra needs at least one explanation]
+is enforced by the check command.
+
+--
+multiple explanations are allowed
+--
+
+a mantra can be explained in many places throughout the repository. each
+explanation adds context without changing the mantra itself. the mantra
+remains the canonical form; explanations are commentary.
+
+--
+mantra specifications can use string formatting templates for mantra with value
+--
+
+a mantra can contain placeholders using {name} syntax. for example, a mantra
+like "user: {username}" can be referenced as [user: alice] or [user: bob].
+vyasa recognizes these as instances of the same template mantra with different
+values bound to the placeholder.
+
+--
+template placeholders use curly braces
+--
+
+placeholders are written as {identifier} where identifier is a name. when
+referencing, you substitute the placeholder with an actual value. the mantra
+[mantra specifications can use string formatting templates for mantra with value]
+enables powerful parameterized knowledge.
+
+--
+when referencing a mantra with placeholder you can either use the reference with placeholder or (even partially) instantiated
+--
+
+you have three options when referencing a template mantra:
+
+1. with placeholder: [user: {username}] - refers to the template itself
+2. fully instantiated: [user: amitu] - refers to a specific instance
+3. partially instantiated: [config: {key} = true] - some placeholders filled
+
+the instantiated form lets you immediately start discussing "amitu" without
+first having to say "where amitu is the username". this makes prose flow
+more naturally while maintaining traceability to the template.
+
+--
+mantra references should be in source files where they are being implemented or needed
+--
+
+references aren't just for documentation. when you implement something based
+on a mantra, reference that mantra in the source file. this creates traceability
+between knowledge and implementation.

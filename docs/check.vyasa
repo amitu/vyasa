@@ -1,0 +1,46 @@
+--
+vyasa check verifies all mantras have explanations
+--
+
+the check command is the primary validation tool. it scans all vyasa files
+in the repository and ensures that [every mantra needs at least one explanation].
+
+--
+check reports unexplained mantras with file and line
+--
+
+when a mantra lacks an explanation, vyasa check outputs the file path and
+line number where the mantra was defined, along with a truncated preview
+of the mantra text. this helps you locate and fix the issue quickly.
+
+--
+vyasa check exits with non zero exit code if any rule is violated
+--
+
+the check command validates multiple rules: explanations, empty line spacing,
+and reference validity. if any rule is violated, vyasa check returns exit
+code 1. this makes it suitable for CI pipelines or git hooks.
+
+--
+check validates empty line spacing around delimiters
+--
+
+[before / after -- must contain at least one empty line, unless at start/end of file]
+is enforced by check. violations are reported with file and line number so
+you can fix the spacing issues.
+
+--
+check exits with code 0 when all mantras are explained
+--
+
+when every mantra in the repository has at least one explanation, the
+command prints a success message and exits cleanly. the message includes
+the total count of mantras checked.
+
+--
+check accepts a path argument
+--
+
+by default, vyasa check scans the current directory. you can pass a path
+to check a specific folder or file: `vyasa check ./docs` or even
+`vyasa check ./docs/syntax.vyasa`.

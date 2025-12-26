@@ -4,6 +4,7 @@ use std::path::PathBuf;
 mod check;
 mod parser;
 mod stats;
+mod values;
 
 #[derive(Parser)]
 #[command(name = "vyasa")]
@@ -30,6 +31,18 @@ enum Commands {
         #[arg(long, default_value = "10")]
         buckets: usize,
     },
+    /// Query placeholder values from template mantras
+    Values {
+        /// Filter by mantra reference, e.g. --mantra="[user: {name}]"
+        #[arg(long, short)]
+        mantra: Option<String>,
+        /// Filter by placeholder key name
+        #[arg(long, short)]
+        key: Option<String>,
+        /// Path to file, folder, or glob pattern (defaults to current directory)
+        #[arg(default_value = ".")]
+        path: String,
+    },
 }
 
 fn main() {
@@ -38,6 +51,7 @@ fn main() {
     let result = match cli.command {
         Commands::Check { path } => check::run(&path),
         Commands::Stats { path, buckets } => stats::run(&path, buckets),
+        Commands::Values { mantra, key, path } => values::run(&path, mantra, key),
     };
 
     if let Err(e) = result {
