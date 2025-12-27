@@ -1,9 +1,14 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+mod add;
 mod check;
+mod list;
+mod mantra;
 mod parser;
+mod snapshot;
 mod stats;
+mod status;
 mod values;
 
 #[derive(Parser)]
@@ -20,6 +25,42 @@ enum Commands {
     Check {
         /// Path to the repository (defaults to current directory)
         #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+    /// Show unaccepted mantras/commentaries since last snapshot
+    Status {
+        /// Path to the repository (defaults to current directory)
+        #[arg(default_value = ".")]
+        path: PathBuf,
+    },
+    /// Accept a mantra/commentary pair into the snapshot
+    Add {
+        /// Mantra text to accept (optional, shows interactive selection if omitted)
+        mantra: Option<String>,
+        /// Path to the repository (defaults to current directory)
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+    },
+    /// Show details about a specific mantra
+    Mantra {
+        /// The mantra text to look up
+        text: String,
+        /// Also show where this mantra is referenced
+        #[arg(long, short)]
+        references: bool,
+        /// Path to the repository (defaults to current directory)
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+    },
+    /// List all mantras with their acceptance status
+    List {
+        /// Filter mantras containing this text
+        filter: Option<String>,
+        /// Only show pending (unaccepted) mantras
+        #[arg(long, short)]
+        pending: bool,
+        /// Path to the repository (defaults to current directory)
+        #[arg(long, default_value = ".")]
         path: PathBuf,
     },
     /// Show statistics about mantras in the repository
@@ -50,6 +91,18 @@ fn main() {
 
     let result = match cli.command {
         Commands::Check { path } => check::run(&path),
+        Commands::Status { path } => status::run(&path),
+        Commands::Add { mantra, path } => add::run(&path, mantra),
+        Commands::Mantra {
+            text,
+            references,
+            path,
+        } => mantra::run(&path, &text, references),
+        Commands::List {
+            filter,
+            pending,
+            path,
+        } => list::run(&path, filter, pending),
         Commands::Stats { path, buckets } => stats::run(&path, buckets),
         Commands::Values { mantra, key, path } => values::run(&path, mantra, key),
     };

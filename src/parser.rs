@@ -13,6 +13,16 @@ pub struct Mantra {
     pub is_template: bool,
 }
 
+/// A mantra definition with its commentary text (for snapshotting)
+#[derive(Debug, Clone)]
+pub struct MantraDefinition {
+    pub mantra_text: String,
+    pub commentary: String,
+    pub file: String,
+    pub line: usize,
+    pub is_template: bool,
+}
+
 // `^mantra^@kosha` provides commentary on external mantra
 #[derive(Debug, Clone)]
 pub struct ExternalCommentary {
@@ -55,6 +65,7 @@ pub struct KoshaConfig {
 #[derive(Debug, Default)]
 pub struct Repository {
     pub mantras: HashMap<String, Mantra>,
+    pub definitions: Vec<MantraDefinition>,
     pub references: Vec<Reference>,
     pub external_commentaries: Vec<ExternalCommentary>,
     pub kosha_config: KoshaConfig,
@@ -271,9 +282,20 @@ fn parse_line(line: &str, file_name: &str, line_num: usize, repo: &mut Repositor
                 } else {
                     // local mantra definition
                     let is_template = mantra_text.contains('{') && mantra_text.contains('}');
-                    let has_explanation = line_has_commentary(line, &mantra_text);
+                    let commentary = extract_commentary(line, &mantra_text);
+                    let has_explanation = commentary.is_some();
 
-                    repo.mantras.insert(mantra_text.clone(), Mantra {
+                    // add to definitions Vec (allows multiple commentaries per mantra)
+                    repo.definitions.push(MantraDefinition {
+                        mantra_text: mantra_text.clone(),
+                        commentary: commentary.unwrap_or_default(),
+                        file: file_name.to_string(),
+                        line: line_num,
+                        is_template,
+                    });
+
+                    // also add to mantras HashMap (for backward compat, uses first definition)
+                    repo.mantras.entry(mantra_text.clone()).or_insert(Mantra {
                         text: mantra_text,
                         file: file_name.to_string(),
                         line: line_num,
@@ -326,15 +348,26 @@ fn parse_line(line: &str, file_name: &str, line_num: usize, repo: &mut Repositor
     }
 }
 
-// Check if a line has text beyond just the mantra definition
-fn line_has_commentary(line: &str, mantra_text: &str) -> bool {
+// Extract commentary text from a line (text after the mantra definition)
+fn extract_commentary(line: &str, mantra_text: &str) -> Option<String> {
     // remove the mantra definition from the line and check if there's other text
     let pattern = format!("^{}^", mantra_text);
     let remaining = line.replace(&pattern, "");
     let trimmed = remaining.trim();
 
     // has commentary if there's non-empty text that isn't just punctuation
-    !trimmed.is_empty() && trimmed.chars().any(|c| c.is_alphanumeric())
+    if !trimmed.is_empty() && trimmed.chars().any(|c| c.is_alphanumeric()) {
+        // strip leading " - " which is common commentary prefix
+        let commentary = trimmed.strip_prefix("- ").unwrap_or(trimmed);
+        Some(commentary.to_string())
+    } else {
+        None
+    }
+}
+
+// Check if a line has text beyond just the mantra definition
+fn line_has_commentary(line: &str, mantra_text: &str) -> bool {
+    extract_commentary(line, mantra_text).is_some()
 }
 
 // ~mantra commentary can be in same para~ - mark mantras as explained if they have nearby commentary
@@ -549,7 +582,7 @@ fn should_skip_file(ext: &str) -> bool {
     )
 }
 
-fn find_repo_root(path: &Path) -> Option<std::path::PathBuf> {
+pub fn find_repo_root(path: &Path) -> Option<std::path::PathBuf> {
     let mut current = if path.is_file() {
         path.parent().map(|p| p.to_path_buf())
     } else {
