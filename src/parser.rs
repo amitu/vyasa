@@ -104,6 +104,11 @@ impl Repository {
                 continue;
             }
 
+            // skip canon.md - it's a digest file, not a source
+            if file_path.file_name().map_or(false, |n| n == "canon.md") {
+                continue;
+            }
+
             let content = match fs::read_to_string(file_path) {
                 Ok(c) => c,
                 Err(_) => continue,

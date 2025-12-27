@@ -14,7 +14,11 @@
 
 ^kosha.local.md required for non-folder koshas^ - if kosha.md references git or fastn-kosha (not local folder), you must provide local path in kosha.local.md before vyasa can resolve references.
 
-^kosha check verifies all kosha references^ - the check command validates: all @kosha-name references have matching alias, non-folder koshas have local dirs, local paths exist, referenced mantras exist in external kosha.
+^when a mantra from other kosha is referred, that mantra must exist in canon of that kosha^ - referencing `~mantra~@physics` requires that "mantra" is in the canon.md of the physics kosha. this ensures you only depend on accepted, stable knowledge from external sources.
+
+^external mantras can be included in your canon^ - you can add `^mantra^@kosha` entries to your canon.md to cite accepted knowledge from other koshas. the mantra must exist in that kosha's canon.
+
+^kosha check verifies all kosha references^ - the check command validates: all @kosha-name references have matching alias, non-folder koshas have local dirs, local paths exist, referenced mantras exist in external kosha's canon.
 
 ^kosha check recursively verifies downstream references^ - when you reference a mantra from an external kosha, vyasa verifies that mantra exists. the referenced mantra's commentary may contain further references, and those must also exist. if those references point to other koshas, they are recursively verified.
 

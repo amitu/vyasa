@@ -1,4 +1,5 @@
-use crate::parser::Repository;
+use crate::parser::{find_repo_root, Repository};
+use crate::snapshot::{Canon, CanonSearchResult};
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -41,7 +42,7 @@ pub fn run(path: &Path) -> Result<(), String> {
     }
 
     // ~kosha check verifies all kosha references~
-    let kosha_errors = check_kosha_references(&repo);
+    let kosha_errors = check_kosha_references(&repo, path);
     if !kosha_errors.is_empty() {
         has_errors = true;
         println!("found {} kosha reference errors:\n", kosha_errors.len());
@@ -60,7 +61,8 @@ pub fn run(path: &Path) -> Result<(), String> {
 }
 
 // ~kosha check verifies all kosha references~
-fn check_kosha_references(repo: &Repository) -> Vec<String> {
+// ~when a mantra from other kosha is referred, that mantra must exist in canon of that kosha~
+fn check_kosha_references(repo: &Repository, repo_path: &Path) -> Vec<String> {
     let mut errors = Vec::new();
 
     // collect all defined kosha aliases
@@ -78,6 +80,33 @@ fn check_kosha_references(repo: &Repository) -> Vec<String> {
         .iter()
         .map(|d| d.alias.as_str())
         .collect();
+
+    // load our own canon to check external entries
+    let repo_root = find_repo_root(repo_path);
+    let our_canon = repo_root
+        .as_ref()
+        .map(|r| Canon::find(r))
+        .and_then(|result| match result {
+            CanonSearchResult::Found(c) => Some(c),
+            _ => None,
+        });
+
+    // cache loaded kosha canons
+    let mut kosha_canons: std::collections::HashMap<String, Option<Canon>> =
+        std::collections::HashMap::new();
+
+    // helper to load a kosha's canon
+    let load_kosha_canon = |kosha_name: &str, repo: &Repository| -> Option<Canon> {
+        let resolved = repo.resolve_kosha_path(kosha_name)?;
+        let kosha_path = Path::new(&resolved);
+        if !kosha_path.exists() {
+            return None;
+        }
+        match Canon::find(kosha_path) {
+            CanonSearchResult::Found(c) => Some(c),
+            _ => None,
+        }
+    };
 
     // check each reference with a kosha
     for reference in &repo.references {
@@ -103,9 +132,10 @@ fn check_kosha_references(repo: &Repository) -> Vec<String> {
 
                 if !is_folder && !local_dirs.contains(kosha_name.as_str()) {
                     errors.push(format!(
-                        "kosha '{}' refers to '{}' but no local folder defined in kosha.local.vyasa",
+                        "kosha '{}' refers to '{}' but no local folder defined in kosha.local.md",
                         kosha_name, alias.value
                     ));
+                    continue;
                 }
 
                 // check if resolved path exists
@@ -119,6 +149,64 @@ fn check_kosha_references(repo: &Repository) -> Vec<String> {
                         errors.push(format!(
                             "kosha '{}' folder does not exist: {}",
                             kosha_name, resolved_path
+                        ));
+                        continue;
+                    }
+
+                    // load the kosha's canon and verify mantra exists
+                    let canon = kosha_canons
+                        .entry(kosha_name.clone())
+                        .or_insert_with(|| load_kosha_canon(kosha_name, repo));
+
+                    if let Some(canon) = canon {
+                        if canon.get(&reference.mantra_text).is_none() {
+                            errors.push(format!(
+                                "{}:{}: mantra not in {}'s canon: ~{}~@{}",
+                                reference.file,
+                                reference.line,
+                                kosha_name,
+                                truncate(&reference.mantra_text, 30),
+                                kosha_name
+                            ));
+                        }
+                    } else {
+                        errors.push(format!(
+                            "kosha '{}' has no canon.md",
+                            kosha_name
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    // check external entries in our canon
+    if let Some(canon) = our_canon {
+        for entry in canon.external_entries() {
+            if let Some(kosha_name) = &entry.external_kosha {
+                // check if alias is defined
+                if !defined_aliases.contains(kosha_name.as_str()) {
+                    errors.push(format!(
+                        "canon references undefined kosha '{}' for ^{}^@{}",
+                        kosha_name,
+                        truncate(&entry.mantra, 30),
+                        kosha_name
+                    ));
+                    continue;
+                }
+
+                // load the kosha's canon and verify mantra exists
+                let external_canon = kosha_canons
+                    .entry(kosha_name.clone())
+                    .or_insert_with(|| load_kosha_canon(kosha_name, repo));
+
+                if let Some(external_canon) = external_canon {
+                    if external_canon.get(&entry.mantra).is_none() {
+                        errors.push(format!(
+                            "canon entry ^{}^@{} not found in {}'s canon",
+                            truncate(&entry.mantra, 30),
+                            kosha_name,
+                            kosha_name
                         ));
                     }
                 }

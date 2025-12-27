@@ -1,108 +1,124 @@
 use crate::parser::{find_repo_root, Repository};
-use crate::snapshot::{compare_with_snapshot, DefinitionStatus, Snapshot};
-use std::collections::HashMap;
+use crate::snapshot::{compare_with_canon, Canon, CanonSearchResult, MantraStatus};
 use std::path::Path;
 
 pub fn run(path: &Path, filter: Option<String>, pending_only: bool) -> Result<(), String> {
     let repo = Repository::parse(path)?;
 
     let repo_root = find_repo_root(path).ok_or("could not find repository root")?;
-    let snapshot = Snapshot::load(&repo_root);
 
-    let statuses = compare_with_snapshot(&repo, &snapshot);
+    let canon = match Canon::find(&repo_root) {
+        CanonSearchResult::NotFound => Canon::default(),
+        CanonSearchResult::Found(canon) => canon,
+        CanonSearchResult::Multiple(paths) => {
+            return Err(format!(
+                "multiple canon.md files found:\n  {}\n\na kosha must have exactly one canon.md at the root",
+                paths.join("\n  ")
+            ));
+        }
+        CanonSearchResult::Invalid { path, errors } => {
+            return Err(format!(
+                "invalid canon.md at {}:\n  {}",
+                path,
+                errors.join("\n  ")
+            ));
+        }
+    };
 
-    // group by mantra text
-    let mut by_mantra: HashMap<String, Vec<_>> = HashMap::new();
-    for status in &statuses {
-        by_mantra
-            .entry(status.definition.mantra_text.clone())
-            .or_default()
-            .push(status);
-    }
+    let mantras = compare_with_canon(&repo, &canon);
 
     // apply filter if provided
     let filtered: Vec<_> = if let Some(ref f) = filter {
-        by_mantra
+        mantras
             .iter()
-            .filter(|(mantra, _)| mantra.contains(f))
+            .filter(|m| m.mantra_text.contains(f))
             .collect()
     } else {
-        by_mantra.iter().collect()
+        mantras.iter().collect()
     };
 
     // calculate stats
-    let mut fully_accepted = 0;
-    let mut pending = 0;
-    let mut partial = 0;
+    let mut accepted = 0;
+    let mut new_count = 0;
+    let mut changed = 0;
+    let mut orphaned = 0;
 
-    let mut display_list: Vec<_> = filtered
+    let display_list: Vec<_> = filtered
         .iter()
-        .map(|(mantra, entries)| {
-            let accepted = entries
-                .iter()
-                .filter(|e| matches!(e.status, DefinitionStatus::Accepted))
-                .count();
-            let total = entries.len();
-            let pending_count = total - accepted;
-
-            let status = if pending_count == 0 {
-                fully_accepted += 1;
-                MantraStatus::Accepted
-            } else if accepted == 0 {
-                pending += 1;
-                MantraStatus::Pending
-            } else {
-                partial += 1;
-                MantraStatus::Partial { accepted, total }
+        .map(|m| {
+            let status = match &m.status {
+                MantraStatus::Accepted => {
+                    accepted += 1;
+                    ListStatus::Accepted
+                }
+                MantraStatus::New => {
+                    new_count += 1;
+                    ListStatus::New
+                }
+                MantraStatus::Changed { .. } => {
+                    changed += 1;
+                    ListStatus::Changed
+                }
+                MantraStatus::OrphanedInCanon { .. } => {
+                    orphaned += 1;
+                    ListStatus::Orphaned
+                }
             };
-
-            (mantra.as_str(), status, entries.len())
+            (&m.mantra_text, status, m.definitions.len())
         })
         .collect();
 
     // filter to pending only if requested
-    if pending_only {
-        display_list.retain(|(_, status, _)| !matches!(status, MantraStatus::Accepted));
-    }
+    let display_list: Vec<_> = if pending_only {
+        display_list
+            .into_iter()
+            .filter(|(_, status, _)| !matches!(status, ListStatus::Accepted))
+            .collect()
+    } else {
+        display_list
+    };
 
     // sort alphabetically
-    display_list.sort_by(|a, b| a.0.cmp(b.0));
+    let mut sorted: Vec<_> = display_list;
+    sorted.sort_by(|a, b| a.0.cmp(b.0));
 
     // print summary
     if let Some(ref f) = filter {
         println!(
-            "{} mantras matching \"{}\" ({} accepted, {} pending, {} partial)\n",
-            display_list.len(),
+            "{} mantras matching \"{}\" ({} in canon, {} new, {} changed, {} orphaned)\n",
+            sorted.len(),
             f,
-            fully_accepted,
-            pending,
-            partial
+            accepted,
+            new_count,
+            changed,
+            orphaned
         );
     } else {
         println!(
-            "{} mantras ({} accepted, {} pending, {} partial)\n",
-            display_list.len(),
-            fully_accepted,
-            pending,
-            partial
+            "{} mantras ({} in canon, {} new, {} changed, {} orphaned)\n",
+            sorted.len(),
+            accepted,
+            new_count,
+            changed,
+            orphaned
         );
     }
 
     // print list
-    for (mantra, status, count) in &display_list {
+    for (mantra, status, count) in &sorted {
         let marker = match status {
-            MantraStatus::Accepted => "[ok]",
-            MantraStatus::Pending => "[!!]",
-            MantraStatus::Partial { .. } => "[**]",
+            ListStatus::Accepted => "[ok]",
+            ListStatus::New => "[!!]",
+            ListStatus::Changed => "[**]",
+            ListStatus::Orphaned => "[??]",
         };
 
-        let suffix = match status {
-            MantraStatus::Accepted if *count > 1 => format!(" ({} commentaries)", count),
-            MantraStatus::Partial { accepted, total } => {
-                format!(" ({}/{} accepted)", accepted, total)
-            }
-            MantraStatus::Pending if *count > 1 => format!(" ({} pending)", count),
-            _ => String::new(),
+        let suffix = if *count > 1 {
+            format!(" ({} definitions)", count)
+        } else if *count == 0 {
+            " (canon only)".to_string()
+        } else {
+            String::new()
         };
 
         println!("  {} {}{}", marker, truncate(mantra, 55), suffix);
@@ -112,10 +128,11 @@ pub fn run(path: &Path, filter: Option<String>, pending_only: bool) -> Result<()
 }
 
 #[derive(Debug)]
-enum MantraStatus {
+enum ListStatus {
     Accepted,
-    Pending,
-    Partial { accepted: usize, total: usize },
+    New,
+    Changed,
+    Orphaned,
 }
 
 fn truncate(s: &str, max_len: usize) -> String {

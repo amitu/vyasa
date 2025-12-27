@@ -1,78 +1,125 @@
 use crate::parser::{find_repo_root, Repository};
-use crate::snapshot::{compare_with_snapshot, DefinitionStatus, Snapshot};
+use crate::snapshot::{compare_with_canon, Canon, CanonSearchResult, MantraStatus};
 use std::path::Path;
 
 pub fn run(path: &Path) -> Result<(), String> {
     let repo = Repository::parse(path)?;
 
     let repo_root = find_repo_root(path).ok_or("could not find repository root")?;
-    let snapshot = Snapshot::load(&repo_root);
 
-    let statuses = compare_with_snapshot(&repo, &snapshot);
+    let canon = match Canon::find(&repo_root) {
+        CanonSearchResult::NotFound => {
+            println!("no canon.md found\n");
+            println!("create a canon.md file at the repository root to track accepted mantras.");
+            println!("format: ^mantra^ - commentary\n");
+            Canon::default()
+        }
+        CanonSearchResult::Found(canon) => {
+            if let Some(ref path) = canon.path {
+                println!("using {}\n", path);
+            }
+            canon
+        }
+        CanonSearchResult::Multiple(paths) => {
+            return Err(format!(
+                "multiple canon.md files found:\n  {}\n\na kosha must have exactly one canon.md at the root",
+                paths.join("\n  ")
+            ));
+        }
+        CanonSearchResult::Invalid { path, errors } => {
+            return Err(format!(
+                "invalid canon.md at {}:\n  {}",
+                path,
+                errors.join("\n  ")
+            ));
+        }
+    };
 
-    let new_entries: Vec<_> = statuses
+    let mantras = compare_with_canon(&repo, &canon);
+
+    let new_mantras: Vec<_> = mantras
         .iter()
-        .filter(|s| matches!(s.status, DefinitionStatus::New))
+        .filter(|m| matches!(m.status, MantraStatus::New))
         .collect();
 
-    let changed_entries: Vec<_> = statuses
+    let changed_mantras: Vec<_> = mantras
         .iter()
-        .filter(|s| matches!(s.status, DefinitionStatus::Changed { .. }))
+        .filter(|m| matches!(m.status, MantraStatus::Changed { .. }))
         .collect();
 
-    let accepted_count = statuses
+    let orphaned_mantras: Vec<_> = mantras
         .iter()
-        .filter(|s| matches!(s.status, DefinitionStatus::Accepted))
+        .filter(|m| matches!(m.status, MantraStatus::OrphanedInCanon { .. }))
+        .collect();
+
+    let accepted_count = mantras
+        .iter()
+        .filter(|m| matches!(m.status, MantraStatus::Accepted))
         .count();
 
-    if new_entries.is_empty() && changed_entries.is_empty() {
-        println!(
-            "all {} mantra/commentary pairs are accepted",
-            statuses.len()
-        );
+    // show orphaned mantras first (these are errors)
+    if !orphaned_mantras.is_empty() {
+        println!("{} mantras in canon but not in any source file:\n", orphaned_mantras.len());
+        for mantra in &orphaned_mantras {
+            println!("  ^{}^", truncate(&mantra.mantra_text, 60));
+            if let MantraStatus::OrphanedInCanon { canon_commentary } = &mantra.status {
+                println!("    \"{}\"", truncate(canon_commentary, 60));
+            }
+            println!();
+        }
+        println!("canon is a digest only - mantras must be defined in source files.\n");
+    }
+
+    if new_mantras.is_empty() && changed_mantras.is_empty() && orphaned_mantras.is_empty() {
+        println!("all {} mantras are in canon", mantras.len());
         return Ok(());
     }
 
-    // show new entries
-    if !new_entries.is_empty() {
-        println!(
-            "{} new mantra/commentary pairs since last snapshot:\n",
-            new_entries.len()
-        );
-        for entry in &new_entries {
-            println!("  {}:{}", entry.definition.file, entry.definition.line);
-            println!("    ^{}^", truncate(&entry.definition.mantra_text, 60));
-            if !entry.definition.commentary.is_empty() {
-                println!("    \"{}\"", truncate(&entry.definition.commentary, 60));
+    // show new mantras
+    if !new_mantras.is_empty() {
+        println!("{} new mantras not yet in canon:\n", new_mantras.len());
+        for mantra in &new_mantras {
+            println!("  ^{}^", truncate(&mantra.mantra_text, 60));
+            // show first definition's location and commentary
+            if let Some(def) = mantra.definitions.first() {
+                println!("    {}:{}", def.file, def.line);
+                if !def.commentary.is_empty() {
+                    println!("    \"{}\"", truncate(&def.commentary, 60));
+                }
+            }
+            if mantra.definitions.len() > 1 {
+                println!("    ({} definitions total)", mantra.definitions.len());
             }
             println!();
         }
     }
 
-    // show changed entries
-    if !changed_entries.is_empty() {
-        println!("{} changed commentaries:\n", changed_entries.len());
-        for entry in &changed_entries {
-            println!("  {}:{}", entry.definition.file, entry.definition.line);
-            println!("    ^{}^", truncate(&entry.definition.mantra_text, 60));
-            if let DefinitionStatus::Changed { old_commentary } = &entry.status {
-                println!("    - was: \"{}\"", truncate(old_commentary, 50));
-                println!(
-                    "    + now: \"{}\"",
-                    truncate(&entry.definition.commentary, 50)
-                );
+    // show changed mantras
+    if !changed_mantras.is_empty() {
+        println!("{} mantras with changed commentary:\n", changed_mantras.len());
+        for mantra in &changed_mantras {
+            println!("  ^{}^", truncate(&mantra.mantra_text, 60));
+            if let MantraStatus::Changed { canon_commentary } = &mantra.status {
+                println!("    canon: \"{}\"", truncate(canon_commentary, 50));
+                if let Some(def) = mantra.definitions.first() {
+                    println!("    now:   \"{}\"", truncate(&def.commentary, 50));
+                }
             }
             println!();
         }
     }
 
     println!(
-        "summary: {} accepted, {} new, {} changed",
+        "summary: {} in canon, {} new, {} changed, {} orphaned",
         accepted_count,
-        new_entries.len(),
-        changed_entries.len()
+        new_mantras.len(),
+        changed_mantras.len(),
+        orphaned_mantras.len()
     );
-    println!("\nuse 'vyasa add' to accept changes.");
+
+    if !orphaned_mantras.is_empty() {
+        return Err("canon contains mantras not found in source files".to_string());
+    }
 
     Ok(())
 }

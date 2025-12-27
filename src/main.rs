@@ -1,7 +1,6 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-mod add;
 mod check;
 mod list;
 mod mantra;
@@ -27,18 +26,10 @@ enum Commands {
         #[arg(default_value = ".")]
         path: PathBuf,
     },
-    /// Show unaccepted mantras/commentaries since last snapshot
+    /// Compare mantras against canon.md
     Status {
         /// Path to the repository (defaults to current directory)
         #[arg(default_value = ".")]
-        path: PathBuf,
-    },
-    /// Accept a mantra/commentary pair into the snapshot
-    Add {
-        /// Mantra text to accept (optional, shows interactive selection if omitted)
-        mantra: Option<String>,
-        /// Path to the repository (defaults to current directory)
-        #[arg(long, default_value = ".")]
         path: PathBuf,
     },
     /// Show details about a specific mantra
@@ -52,11 +43,11 @@ enum Commands {
         #[arg(long, default_value = ".")]
         path: PathBuf,
     },
-    /// List all mantras with their acceptance status
+    /// List all mantras with their canon status
     List {
         /// Filter mantras containing this text
         filter: Option<String>,
-        /// Only show pending (unaccepted) mantras
+        /// Only show pending (not in canon) mantras
         #[arg(long, short)]
         pending: bool,
         /// Path to the repository (defaults to current directory)
@@ -92,7 +83,6 @@ fn main() {
     let result = match cli.command {
         Commands::Check { path } => check::run(&path),
         Commands::Status { path } => status::run(&path),
-        Commands::Add { mantra, path } => add::run(&path, mantra),
         Commands::Mantra {
             text,
             references,
