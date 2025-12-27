@@ -4,15 +4,16 @@ a tool to help organize and curate knowledge for yourself, the public, and AI.
 
 ## the problem with prose
 
-> **^prose interferes with knowledge organization^** - the key insight behind vyasa.
-> easily written prose tends to drift from precise formulations. real knowledge
-> requires careful wording - keeping things compact, preserving exact phrasing.
+> **^prose interferes with knowledge organization^** - the key insight behind 
+> vyasa. easily written prose tends to drift from precise formulations. real 
+> knowledge requires careful wording - keeping things compact, preserving exact 
+> phrasing.
 
 ## mantras: the core concept
 
-vyasa defines a concept called a **mantra**. a mantra can be in any language, but
-must be strict - repeating the mantra means repeating the exact phrasing. the
-canonical, normative form must be preserved.
+vyasa defines a concept called a **mantra**. a mantra can be in any language, 
+but must be strict - repeating the mantra means repeating the exact phrasing. 
+the canonical, normative form must be preserved.
 
 _| mantras should use inline syntax not block because they are meant to be short |_ -
 this is why mantras use `> **^caret delimiters^**` in quote blocks. they're
@@ -21,16 +22,19 @@ meant to be short, precise statements that stand out visually.
 ## syntax
 
 mantra definition (inside quote block):
+
 ```markdown
 > **^your mantra text here^** - commentary explaining the mantra
 ```
 
 reference (anywhere):
+
 ```markdown
 _| your mantra text here |_
 ```
 
 example:
+
 ```markdown
 > **^every mantra needs at least one explanation^** - a mantra without commentary
 > is incomplete. the explanation provides context and reasoning.

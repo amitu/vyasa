@@ -38,9 +38,9 @@ pub fn run(path: &Path, buckets: usize) -> Result<(), String> {
     }
 
     // reference histogram
-    if buckets > 0 && !ref_counts.is_empty() {
+    if buckets > 0 {
         println!("\nreference distribution:");
-        print_histogram(&ref_counts, buckets);
+        print_histogram(&ref_counts, buckets, total_mantras);
     } else if buckets == 0 && !ref_counts.is_empty() {
         println!("\nreferences per mantra:");
         let mut counts: Vec<_> = ref_counts.iter().collect();
@@ -53,25 +53,39 @@ pub fn run(path: &Path, buckets: usize) -> Result<(), String> {
     Ok(())
 }
 
-fn print_histogram(ref_counts: &std::collections::HashMap<String, usize>, max_buckets: usize) {
-    let max_refs = *ref_counts.values().max().unwrap_or(&0);
-    if max_refs == 0 {
-        return;
-    }
+fn print_histogram(
+    ref_counts: &std::collections::HashMap<String, usize>,
+    max_buckets: usize,
+    total_mantras: usize,
+) {
+    // count of mantras with 0 references
+    let zero_refs = total_mantras - ref_counts.len();
 
-    // use at most max_buckets, but fewer if range is smaller
-    let num_buckets = max_refs.min(max_buckets);
-    let bucket_size = (max_refs + num_buckets - 1) / num_buckets;
-    let mut bucket_counts = vec![0usize; num_buckets];
+    let max_refs = *ref_counts.values().max().unwrap_or(&0);
+
+    // use at most max_buckets-1 for non-zero refs (reserve one for 0)
+    let effective_buckets = if max_refs > 0 { max_buckets - 1 } else { 0 };
+    let num_buckets = max_refs.min(effective_buckets).max(1);
+    let bucket_size = if max_refs > 0 {
+        (max_refs + num_buckets - 1) / num_buckets
+    } else {
+        1
+    };
+
+    // bucket_counts[0] is for 0 refs, bucket_counts[1..] for 1+ refs
+    let mut bucket_counts = vec![0usize; num_buckets + 1];
+    bucket_counts[0] = zero_refs;
 
     for &count in ref_counts.values() {
-        let bucket = (count.saturating_sub(1)) / bucket_size;
-        let bucket = bucket.min(num_buckets - 1);
-        bucket_counts[bucket] += 1;
+        if count > 0 {
+            let bucket = ((count - 1) / bucket_size) + 1;
+            let bucket = bucket.min(num_buckets);
+            bucket_counts[bucket] += 1;
+        }
     }
 
-    // find first and last non-empty buckets
-    let first_non_empty = bucket_counts.iter().position(|&c| c > 0).unwrap_or(0);
+    // find last non-empty bucket (always show 0 refs if present)
+    let first_non_empty = if zero_refs > 0 { 0 } else { 1 };
     let last_non_empty = bucket_counts.iter().rposition(|&c| c > 0).unwrap_or(0);
 
     let max_bucket = *bucket_counts[first_non_empty..=last_non_empty]
@@ -82,15 +96,24 @@ fn print_histogram(ref_counts: &std::collections::HashMap<String, usize>, max_bu
 
     for i in first_non_empty..=last_non_empty {
         let count = bucket_counts[i];
-        let start = i * bucket_size + 1;
-        let end = (i + 1) * bucket_size;
+        let (start, end) = if i == 0 {
+            (0, 0)
+        } else {
+            let start = (i - 1) * bucket_size + 1;
+            let end = i * bucket_size;
+            (start, end)
+        };
         let bar_len = if max_bucket > 0 {
             (count * bar_width) / max_bucket
         } else {
             0
         };
         let bar: String = "█".repeat(bar_len);
-        println!("  {:>3}-{:<3} refs: {:>4} {}", start, end, count, bar);
+        if start == end {
+            println!("      {} refs: {:>4} {}", start, count, bar);
+        } else {
+            println!("  {:>3}-{:<3} refs: {:>4} {}", start, end, count, bar);
+        }
     }
 }
 
