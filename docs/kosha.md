@@ -27,3 +27,15 @@
 > **^external commentary uses mantra-at-kosha syntax^** - use `^mantra^@kosha` to provide commentary on a mantra defined in another kosha. this doesn't define the mantra locally, just explains it.
 
 > **^each local mantra needs local explanation^** - even if you provide commentary on external mantras, every mantra defined in your kosha must have at least one explanation within your kosha. readers shouldn't need other koshas to understand.
+
+> **^vyasa study helps you study configured koshas^** - the study command shows mantras
+> from external koshas that are not yet in your local canon. use it to catch up on
+> knowledge from teams or projects you follow.
+
+> **^study shows first few items when given a kosha^** - `vyasa study my-team` shows
+> the first 5 mantras (configurable with -c) from my-team's canon that you haven't
+> added to your canon yet.
+
+> **^study shows stats for all koshas when no argument^** - `vyasa study` without an
+> alias shows how many items you're behind for each configured kosha, helping you
+> prioritize what to study.

@@ -8,6 +8,7 @@ mod parser;
 mod snapshot;
 mod stats;
 mod status;
+mod study;
 mod values;
 
 #[derive(Parser)]
@@ -75,6 +76,17 @@ enum Commands {
         #[arg(default_value = ".")]
         path: String,
     },
+    /// Study mantras from configured koshas
+    Study {
+        /// Kosha alias to study (if omitted, shows stats for all koshas)
+        kosha: Option<String>,
+        /// Number of mantras to show (default 5)
+        #[arg(long, short, default_value = "5")]
+        count: usize,
+        /// Path to the repository (defaults to current directory)
+        #[arg(long, default_value = ".")]
+        path: PathBuf,
+    },
 }
 
 fn main() {
@@ -95,6 +107,7 @@ fn main() {
         } => list::run(&path, filter, pending),
         Commands::Stats { path, buckets } => stats::run(&path, buckets),
         Commands::Values { mantra, key, path } => values::run(&path, mantra, key),
+        Commands::Study { kosha, count, path } => study::run(&path, kosha, count),
     };
 
     if let Err(e) = result {
