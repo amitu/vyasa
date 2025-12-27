@@ -38,18 +38,18 @@ pub struct Reference {
     pub file: String,
     pub line: usize,
     pub matched_template: Option<String>,
-    // `~mantra~@kosha-name` for external references
+    // `_mantra_@kosha-name` for external references
     pub kosha: Option<String>,
 }
 
-// ~kosha-alias {kosha-alias}: {kosha-value}~
+// _kosha-alias {kosha-alias}: {kosha-value}_
 #[derive(Debug, Clone)]
 pub struct KoshaAlias {
     pub alias: String,
     pub value: String,
 }
 
-// ~kosha-dir {kosha-alias}: {folder-name}~
+// _kosha-dir {kosha-alias}: {folder-name}_
 #[derive(Debug, Clone)]
 pub struct KoshaDir {
     pub alias: String,
@@ -72,7 +72,7 @@ pub struct Repository {
 }
 
 impl Repository {
-    // ~vyasa check checks all non human meant files~
+    // _vyasa check checks all non human meant files_
     pub fn parse(path: &Path) -> Result<Self, String> {
         let mut repo = Repository::default();
 
@@ -97,7 +97,7 @@ impl Repository {
                 continue;
             }
 
-            // ~vyasa check checks all non human meant files~
+            // _vyasa check checks all non human meant files_
             // skip binary and human-meant files (xml, images, etc.)
             let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
             if should_skip_file(ext) {
@@ -213,7 +213,7 @@ pub struct PlaceholderValue {
     pub line: usize,
 }
 
-// ~mantras should use inline syntax not block because they are meant to be short~
+// _mantras should use inline syntax not block because they are meant to be short_
 fn parse_file(content: &str, file_name: &str, repo: &mut Repository) {
     let lines: Vec<&str> = content.lines().collect();
 
@@ -318,72 +318,83 @@ fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, parag
             continue;
         }
 
-        // ^mantra definition^ or ^mantra^@kosha (external commentary)
-        if c == '^' {
-            let mut mantra_text = String::new();
+        // **^mantra definition^** - bold canonical commentary syntax (required)
+        // or **^mantra^**@kosha for external commentary
+        if c == '*' && chars.peek() == Some(&'*') {
+            chars.next(); // consume second *
+            if chars.peek() == Some(&'^') {
+                chars.next(); // consume ^
+                let mut mantra_text = String::new();
 
-            for c in chars.by_ref() {
-                if c == '^' {
-                    break;
-                }
-                mantra_text.push(c);
-            }
-
-            let mantra_text = mantra_text.trim().to_string();
-            if !mantra_text.is_empty() {
-                // check for @kosha suffix (external commentary)
-                if chars.peek() == Some(&'@') {
-                    chars.next(); // consume @
-                    let mut kosha_name = String::new();
-                    for c in chars.by_ref() {
-                        if c.is_alphanumeric() || c == '-' || c == '_' {
-                            kosha_name.push(c);
-                        } else {
-                            break;
-                        }
+                for c in chars.by_ref() {
+                    if c == '^' {
+                        break;
                     }
-                    if !kosha_name.is_empty() {
-                        // this is external commentary, not a local mantra definition
-                        repo.external_commentaries.push(ExternalCommentary {
-                            mantra_text,
-                            kosha: kosha_name,
+                    mantra_text.push(c);
+                }
+
+                // consume closing **
+                if chars.peek() == Some(&'*') {
+                    chars.next();
+                    if chars.peek() == Some(&'*') {
+                        chars.next();
+                    }
+                }
+
+                let mantra_text = mantra_text.trim().to_string();
+                if !mantra_text.is_empty() {
+                    // check for @kosha suffix (external commentary)
+                    if chars.peek() == Some(&'@') {
+                        chars.next(); // consume @
+                        let mut kosha_name = String::new();
+                        for c in chars.by_ref() {
+                            if c.is_alphanumeric() || c == '-' || c == '_' {
+                                kosha_name.push(c);
+                            } else {
+                                break;
+                            }
+                        }
+                        if !kosha_name.is_empty() {
+                            repo.external_commentaries.push(ExternalCommentary {
+                                mantra_text,
+                                kosha: kosha_name,
+                                file: file_name.to_string(),
+                                line: line_num,
+                            });
+                        }
+                    } else {
+                        // local mantra definition
+                        let is_template = mantra_text.contains('{') && mantra_text.contains('}');
+                        let commentary = extract_paragraph_commentary(paragraph, &mantra_text);
+                        let has_explanation = !commentary.is_empty();
+
+                        repo.definitions.push(MantraDefinition {
+                            mantra_text: mantra_text.clone(),
+                            commentary,
                             file: file_name.to_string(),
                             line: line_num,
+                            is_template,
+                        });
+
+                        repo.mantras.entry(mantra_text.clone()).or_insert(Mantra {
+                            text: mantra_text,
+                            file: file_name.to_string(),
+                            line: line_num,
+                            has_explanation,
+                            is_template,
                         });
                     }
-                } else {
-                    // local mantra definition - use paragraph as commentary
-                    let is_template = mantra_text.contains('{') && mantra_text.contains('}');
-                    let commentary = extract_paragraph_commentary(paragraph, &mantra_text);
-                    let has_explanation = !commentary.is_empty();
-
-                    // add to definitions Vec (allows multiple commentaries per mantra)
-                    repo.definitions.push(MantraDefinition {
-                        mantra_text: mantra_text.clone(),
-                        commentary,
-                        file: file_name.to_string(),
-                        line: line_num,
-                        is_template,
-                    });
-
-                    // also add to mantras HashMap (for backward compat, uses first definition)
-                    repo.mantras.entry(mantra_text.clone()).or_insert(Mantra {
-                        text: mantra_text,
-                        file: file_name.to_string(),
-                        line: line_num,
-                        has_explanation,
-                        is_template,
-                    });
                 }
+                continue;
             }
         }
 
-        // ~reference~ with optional @kosha
-        if c == '~' {
+        // _reference_ with optional @kosha
+        if c == '_' {
             let mut ref_text = String::new();
 
             for c in chars.by_ref() {
-                if c == '~' {
+                if c == '_' {
                     break;
                 }
                 ref_text.push(c);
@@ -426,9 +437,9 @@ fn extract_paragraph_commentary(paragraph: &str, mantra_text: &str) -> String {
     // remove all mantra definitions from the paragraph
     let mut result = paragraph.to_string();
 
-    // remove this specific mantra definition
-    let pattern = format!("^{}^", mantra_text);
-    result = result.replace(&pattern, "");
+    // remove this specific mantra definition (**^mantra^** syntax only)
+    let bold_pattern = format!("**^{}^**", mantra_text);
+    result = result.replace(&bold_pattern, "");
 
     // also remove any other mantra definitions in the paragraph
     // (a paragraph might define multiple mantras)
@@ -437,11 +448,28 @@ fn extract_paragraph_commentary(paragraph: &str, mantra_text: &str) -> String {
     let mut in_mantra = false;
 
     while let Some(c) = chars.next() {
-        if c == '^' && !in_mantra {
-            in_mantra = true;
-            continue;
+        // handle **^ bold mantra start
+        if c == '*' && chars.peek() == Some(&'*') {
+            let mut peek_chars = chars.clone();
+            peek_chars.next(); // skip second *
+            if peek_chars.peek() == Some(&'^') {
+                chars.next(); // consume second *
+                chars.next(); // consume ^
+                in_mantra = true;
+                continue;
+            }
         }
+        // handle ^** bold mantra end
         if c == '^' && in_mantra {
+            // check for ** after
+            if chars.peek() == Some(&'*') {
+                let mut peek_chars = chars.clone();
+                peek_chars.next();
+                if peek_chars.peek() == Some(&'*') {
+                    chars.next(); // consume first *
+                    chars.next(); // consume second *
+                }
+            }
             in_mantra = false;
             continue;
         }
@@ -465,7 +493,7 @@ fn extract_paragraph_commentary(paragraph: &str, mantra_text: &str) -> String {
     trimmed.to_string()
 }
 
-// ~mantra commentary can be in same para~ - mark mantras as explained if they have nearby commentary
+// _mantra commentary can be in same para_ - mark mantras as explained if they have nearby commentary
 fn mark_explained_mantras(_repo: &mut Repository) {
     // For now, mantras are marked as explained during parsing if they have
     // text in the same line. A more sophisticated approach could look at
@@ -499,7 +527,7 @@ fn resolve_template_references(repo: &mut Repository) {
     }
 }
 
-// ~template placeholders can include example values as {name=example}~
+// _template placeholders can include example values as {name=example}_
 fn extract_placeholder_name(placeholder_content: &str) -> &str {
     if let Some(eq_pos) = placeholder_content.find('=') {
         &placeholder_content[..eq_pos]
@@ -653,7 +681,7 @@ fn extract_values_from_reference(template: &str, reference: &str) -> Vec<(String
     results
 }
 
-// ~vyasa check checks all non human meant files~
+// _vyasa check checks all non human meant files_
 // human-meant: configs, data files, binaries - skip these
 // source code and docs: scan for mantras
 fn should_skip_file(ext: &str) -> bool {
@@ -697,13 +725,13 @@ pub fn find_repo_root(path: &Path) -> Option<std::path::PathBuf> {
 fn load_kosha_config(repo_root: &Path) -> KoshaConfig {
     let mut config = KoshaConfig::default();
 
-    // ~.vyasa/kosha.md contains kosha configuration~
+    // _.vyasa/kosha.md contains kosha configuration_
     let kosha_file = repo_root.join(".vyasa/kosha.md");
     if let Ok(content) = fs::read_to_string(&kosha_file) {
         parse_kosha_aliases(&content, &mut config);
     }
 
-    // ~.vyasa/kosha.local.md stores local folder overrides~
+    // _.vyasa/kosha.local.md stores local folder overrides_
     let local_file = repo_root.join(".vyasa/kosha.local.md");
     if let Ok(content) = fs::read_to_string(&local_file) {
         parse_kosha_local(&content, &mut config);
@@ -713,8 +741,8 @@ fn load_kosha_config(repo_root: &Path) -> KoshaConfig {
 }
 
 fn parse_kosha_aliases(content: &str, config: &mut KoshaConfig) {
-    // look for ~kosha-alias {alias}: {value}~ pattern
-    let alias_pattern = Regex::new(r"~kosha-alias\s+([^:]+):\s*([^~]+)~").ok();
+    // look for _kosha-alias {alias}: {value}_ pattern
+    let alias_pattern = Regex::new(r"_kosha-alias\s+([^:]+):\s*([^_]+)_").ok();
 
     if let Some(re) = alias_pattern {
         for cap in re.captures_iter(content) {
@@ -729,8 +757,8 @@ fn parse_kosha_aliases(content: &str, config: &mut KoshaConfig) {
 }
 
 fn parse_kosha_local(content: &str, config: &mut KoshaConfig) {
-    // look for ~kosha-dir {alias}: {folder}~ pattern
-    let dir_pattern = Regex::new(r"~kosha-dir\s+([^:]+):\s*([^~]+)~").ok();
+    // look for _kosha-dir {alias}: {folder}_ pattern
+    let dir_pattern = Regex::new(r"_kosha-dir\s+([^:]+):\s*([^_]+)_").ok();
 
     if let Some(re) = dir_pattern {
         for cap in re.captures_iter(content) {

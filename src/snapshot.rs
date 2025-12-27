@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-/// ~every kosha has a canon~ - the canon.md file contains accepted mantras
+/// _every kosha has a canon_ - the canon.md file contains accepted mantras
 #[derive(Debug, Clone, Default)]
 pub struct Canon {
     /// Mantra text -> canonical commentary
@@ -201,7 +201,7 @@ fn validate_canon_content(content: &str) -> Vec<String> {
             let mantras = extract_mantras(&unquoted);
             if mantras.is_empty() {
                 errors.push(format!(
-                    "paragraph {}: quote block must contain a mantra definition (^mantra^): \"{}\"",
+                    "paragraph {}: quote block must contain a mantra definition (**^mantra^**): \"{}\"",
                     i + 1,
                     truncate(text, 40)
                 ));
@@ -278,6 +278,7 @@ fn extract_paragraphs(lines: &[&str]) -> Vec<Paragraph> {
 }
 
 /// Extract mantra definitions with optional @kosha suffix
+/// Uses **^mantra^** bold syntax (required)
 /// Returns (mantra_text, optional_kosha)
 fn extract_mantras_with_kosha(paragraph: &str) -> Vec<(String, Option<String>)> {
     let mut mantras = Vec::new();
@@ -293,40 +294,54 @@ fn extract_mantras_with_kosha(paragraph: &str) -> Vec<(String, Option<String>)> 
             continue;
         }
 
-        if c == '^' {
-            let mut mantra_text = String::new();
-            for c in chars.by_ref() {
-                if c == '^' {
-                    break;
-                }
-                mantra_text.push(c);
-            }
-            let mantra_text = mantra_text.trim().to_string();
-            if mantra_text.is_empty() {
-                continue;
-            }
-
-            // check for @kosha suffix
-            let kosha = if chars.peek() == Some(&'@') {
-                chars.next(); // consume @
-                let mut kosha_name = String::new();
-                while let Some(&c) = chars.peek() {
-                    if c.is_alphanumeric() || c == '-' || c == '_' {
-                        kosha_name.push(chars.next().unwrap());
-                    } else {
+        // look for **^ sequence
+        if c == '*' && chars.peek() == Some(&'*') {
+            chars.next(); // consume second *
+            if chars.peek() == Some(&'^') {
+                chars.next(); // consume ^
+                let mut mantra_text = String::new();
+                for c in chars.by_ref() {
+                    if c == '^' {
                         break;
                     }
+                    mantra_text.push(c);
                 }
-                if kosha_name.is_empty() {
-                    None
-                } else {
-                    Some(kosha_name)
-                }
-            } else {
-                None
-            };
 
-            mantras.push((mantra_text, kosha));
+                // consume closing **
+                if chars.peek() == Some(&'*') {
+                    chars.next();
+                    if chars.peek() == Some(&'*') {
+                        chars.next();
+                    }
+                }
+
+                let mantra_text = mantra_text.trim().to_string();
+                if mantra_text.is_empty() {
+                    continue;
+                }
+
+                // check for @kosha suffix
+                let kosha = if chars.peek() == Some(&'@') {
+                    chars.next(); // consume @
+                    let mut kosha_name = String::new();
+                    while let Some(&c) = chars.peek() {
+                        if c.is_alphanumeric() || c == '-' || c == '_' {
+                            kosha_name.push(chars.next().unwrap());
+                        } else {
+                            break;
+                        }
+                    }
+                    if kosha_name.is_empty() {
+                        None
+                    } else {
+                        Some(kosha_name)
+                    }
+                } else {
+                    None
+                };
+
+                mantras.push((mantra_text, kosha));
+            }
         }
     }
 
@@ -341,9 +356,9 @@ fn extract_mantras(paragraph: &str) -> Vec<String> {
 }
 
 fn extract_canon_commentary(paragraph: &str, mantra_text: &str) -> String {
-    // remove all mantra definitions from the paragraph
+    // remove all mantra definitions from the paragraph (**^mantra^** syntax)
     let mut result = paragraph.to_string();
-    let pattern = format!("^{}^", mantra_text);
+    let pattern = format!("**^{}^**", mantra_text);
     result = result.replace(&pattern, "");
 
     // remove any other mantra definitions
@@ -352,11 +367,28 @@ fn extract_canon_commentary(paragraph: &str, mantra_text: &str) -> String {
     let mut in_mantra = false;
 
     while let Some(c) = chars.next() {
-        if c == '^' && !in_mantra {
-            in_mantra = true;
-            continue;
+        // handle **^ bold mantra start
+        if c == '*' && chars.peek() == Some(&'*') {
+            let mut peek_chars = chars.clone();
+            peek_chars.next(); // skip second *
+            if peek_chars.peek() == Some(&'^') {
+                chars.next(); // consume second *
+                chars.next(); // consume ^
+                in_mantra = true;
+                continue;
+            }
         }
+        // handle ^** bold mantra end
         if c == '^' && in_mantra {
+            // check for ** after
+            if chars.peek() == Some(&'*') {
+                let mut peek_chars = chars.clone();
+                peek_chars.next();
+                if peek_chars.peek() == Some(&'*') {
+                    chars.next(); // consume first *
+                    chars.next(); // consume second *
+                }
+            }
             in_mantra = false;
             continue;
         }

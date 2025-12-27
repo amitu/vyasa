@@ -3,7 +3,7 @@ use crate::snapshot::{Canon, CanonSearchResult};
 use std::collections::HashSet;
 use std::path::Path;
 
-// ~vyasa check exits with non zero exit code if any rule is violated~
+// _vyasa check exits with non zero exit code if any rule is violated_
 pub fn run(path: &Path) -> Result<(), String> {
     let repo = Repository::parse(path)?;
 
@@ -26,7 +26,7 @@ pub fn run(path: &Path) -> Result<(), String> {
         error_counts.push(format!("{} unexplained mantras", unexplained.len()));
     }
 
-    // ~vyasa check reports undefined references~
+    // _vyasa check reports undefined references_
     let undefined_refs = check_undefined_references(&repo);
     if !undefined_refs.is_empty() {
         has_errors = true;
@@ -36,12 +36,12 @@ pub fn run(path: &Path) -> Result<(), String> {
         );
         for (file, line, text) in &undefined_refs {
             println!("  {}:{}", file, line);
-            println!("    ~{}~\n", truncate(text, 60));
+            println!("    _{}_\n", truncate(text, 60));
         }
         error_counts.push(format!("{} undefined references", undefined_refs.len()));
     }
 
-    // ~kosha check verifies all kosha references~
+    // _kosha check verifies all kosha references_
     let kosha_errors = check_kosha_references(&repo, path);
     if !kosha_errors.is_empty() {
         has_errors = true;
@@ -60,8 +60,8 @@ pub fn run(path: &Path) -> Result<(), String> {
     }
 }
 
-// ~kosha check verifies all kosha references~
-// ~when a mantra from other kosha is referred, that mantra must exist in canon of that kosha~
+// _kosha check verifies all kosha references_
+// _when a mantra from other kosha is referred, that mantra must exist in canon of that kosha_
 fn check_kosha_references(repo: &Repository, repo_path: &Path) -> Vec<String> {
     let mut errors = Vec::new();
 
@@ -114,7 +114,7 @@ fn check_kosha_references(repo: &Repository, repo_path: &Path) -> Vec<String> {
             // check if alias is defined
             if !defined_aliases.contains(kosha_name.as_str()) {
                 errors.push(format!(
-                    "{}:{}: undefined kosha '{}' in ~{}~@{}",
+                    "{}:{}: undefined kosha '{}' in _{}_`@{}`",
                     reference.file,
                     reference.line,
                     kosha_name,
@@ -161,7 +161,7 @@ fn check_kosha_references(repo: &Repository, repo_path: &Path) -> Vec<String> {
                     if let Some(canon) = canon {
                         if canon.get(&reference.mantra_text).is_none() {
                             errors.push(format!(
-                                "{}:{}: mantra not in {}'s canon: ~{}~@{}",
+                                "{}:{}: mantra not in {}'s canon: _{}_`@{}`",
                                 reference.file,
                                 reference.line,
                                 kosha_name,
@@ -217,7 +217,7 @@ fn check_kosha_references(repo: &Repository, repo_path: &Path) -> Vec<String> {
     errors
 }
 
-// ~vyasa check reports undefined references~
+// _vyasa check reports undefined references_
 fn check_undefined_references(repo: &Repository) -> Vec<(String, usize, String)> {
     let mut undefined = Vec::new();
 

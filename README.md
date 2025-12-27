@@ -4,7 +4,7 @@ a tool to help organize and curate knowledge for yourself, the public, and AI.
 
 ## the problem with prose
 
-^prose interferes with knowledge organization^ - the key insight behind vyasa.
+**^prose interferes with knowledge organization^** - the key insight behind vyasa.
 easily written prose tends to drift from precise formulations. real knowledge
 requires careful wording - keeping things compact, preserving exact phrasing.
 
@@ -14,41 +14,41 @@ vyasa defines a concept called a **mantra**. a mantra can be in any language, bu
 must be strict - repeating the mantra means repeating the exact phrasing. the
 canonical, normative form must be preserved.
 
-~mantras should use inline syntax not block because they are meant to be short~ -
-this is why mantras use `^caret delimiters^` rather than block syntax. they're
+_mantras should use inline syntax not block because they are meant to be short_ -
+this is why mantras use `**^caret delimiters^**` rather than block syntax. they're
 meant to be short, precise statements that fit naturally in prose.
 
 ## syntax
 
-^mantra definition^: `^your mantra text here^`
+**^mantra definition^**: `**^your mantra text here^**`
 - defines a mantra with inline commentary in the same paragraph
 
-reference: `~your mantra text here~`
+reference: `_your mantra text here_`
 - references a mantra defined elsewhere
 
 example:
 ```vyasa
-^every mantra needs at least one explanation^ - a mantra without commentary
+**^every mantra needs at least one explanation^** - a mantra without commentary
 is incomplete. the explanation provides context and reasoning.
 
-when you want to reference this later, use ~every mantra needs at least one
-explanation~ with tildes.
+when you want to reference this later, use _every mantra needs at least one
+explanation_ with underscores.
 ```
 
 ## why no identifiers?
 
-~mantras must be spelled out in full at each reference~ - no abbreviations,
+_mantras must be spelled out in full at each reference_ - no abbreviations,
 no nicknames, no shortcuts. every reference contains the complete mantra text.
 
-`~e = mc^2~` is clearer than `~some-arbitrary-id~` anyway. the exact wording
+`_e = mc^2_` is clearer than `_some-arbitrary-id_` anyway. the exact wording
 *is* the identifier.
 
 ## template mantras
 
-^user: {username}^ - templates use `{placeholder}` syntax. reference as
-~user: alice~ or ~user: bob~.
+**^user: {username}^** - templates use `{placeholder}` syntax. reference as
+_user: alice_ or _user: bob_.
 
-^when {employee=amitu} joins, amitu should be added to github^ - example values
+**^when {employee=amitu} joins, amitu should be added to github^** - example values
 like `{name=example}` make mantras readable while parameterized.
 
 ## commands
@@ -67,15 +67,15 @@ vyasa values --mantra="[user: {username}]" --key=username
 
 ## koshas (external repositories)
 
-`~mantra~@kosha-name` references mantras from other knowledge bases. configure
-koshas in `.vyasa/kosha.vyasa`.
+`_mantra_`@kosha-name`` references mantras from other knowledge bases. configure
+koshas in `.vyasa/kosha.md`.
 
-^external commentary uses mantra-at-kosha syntax^ - use `^mantra^@kosha` to
+**^external commentary uses mantra-at-kosha syntax^** - use `**^mantra^**@kosha` to
 provide commentary on mantras defined in other koshas.
 
 ## the real tool is discipline
 
-^vyasa isn't really needed^ - ideally you'd practice this approach without the
+**^vyasa isn't really needed^** - ideally you'd practice this approach without the
 tool. vyasa is more a reminder of mental discipline than software doing
 something for you. the value is in the habit of careful, minimal, canonical
 knowledge representation.
@@ -88,6 +88,6 @@ detailed docs in `docs/` folder, written in mantra form:
 - `check.md`, `stats.md`, `values.md` - command documentation
 - `kosha.md` - external repository references
 
-^vyasa check checks all non human meant files^ - scans source code, markdown, etc. skips binaries, images, xml.
+**^vyasa check checks all non human meant files^** - scans source code, markdown, etc. skips binaries, images, xml.
 
-^commentaries can and encouraged to exist in source files^ - mantras in code comments trace knowledge to implementation.
+**^commentaries can and encouraged to exist in source files^** - mantras in code comments trace knowledge to implementation.
