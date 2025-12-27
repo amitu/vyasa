@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-/// _every kosha has a canon_ - the canon.md file contains accepted mantras
+/// The canon.md file contains accepted mantras for this kosha
 #[derive(Debug, Clone, Default)]
 pub struct Canon {
     /// Mantra text -> canonical commentary

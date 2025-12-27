@@ -4,7 +4,7 @@
 
 > **^vyasa check verifies all mantras have explanations^** - the check command is the
 > primary validation tool. it scans all vyasa files and ensures
-> _every mantra needs at least one explanation_.
+> _| every mantra needs at least one explanation |_.
 
 > **^check reports unexplained mantras with file and line^** - when a mantra lacks
 > explanation, vyasa check outputs the file path and line number, plus a truncated
@@ -14,7 +14,7 @@
 > validates multiple rules: explanations, reference validity, and kosha config.
 > if any rule is violated, exit code 1 is returned - suitable for CI pipelines.
 
-> **^vyasa check reports undefined references^** - every `_reference_` must match a defined
+> **^vyasa check reports undefined references^** - every `_| reference |_` must match a defined
 > mantra, either exactly or through template matching. undefined references are
 > reported as errors.
 

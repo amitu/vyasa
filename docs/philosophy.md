@@ -8,7 +8,7 @@
 
 > **^mantras are canonical formulations^** - a mantra is the authoritative way to express
 > an idea. once defined, it should not change without careful consideration.
-> _mantras should not change once defined_ is a feature, not a limitation.
+> _| mantras should not change once defined |_ is a feature, not a limitation.
 
 > **^mantras should not change once defined^** - stability is essential for knowledge.
 > if a mantra keeps changing, references become unreliable. when you need to evolve
@@ -18,7 +18,7 @@
 > nicknames, no shortcuts. every reference contains the complete mantra text. this
 > forces intentionality about what you're referencing.
 
-> **^repetition reinforces precision^** - because _mantras must be spelled out in full at each reference_,
+> **^repetition reinforces precision^** - because _| mantras must be spelled out in full at each reference |_,
 > you can't hide behind abbreviations. every reference is a recommitment to the
 > exact formulation.
 

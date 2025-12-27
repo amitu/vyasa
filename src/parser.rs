@@ -38,18 +38,18 @@ pub struct Reference {
     pub file: String,
     pub line: usize,
     pub matched_template: Option<String>,
-    // `_mantra_@kosha-name` for external references
+    // `_| mantra |_@kosha-name` for external references
     pub kosha: Option<String>,
 }
 
-// _kosha-alias {kosha-alias}: {kosha-value}_
+// _| kosha-alias {kosha-alias}: {kosha-value} |_
 #[derive(Debug, Clone)]
 pub struct KoshaAlias {
     pub alias: String,
     pub value: String,
 }
 
-// _kosha-dir {kosha-alias}: {folder-name}_
+// _| kosha-dir {kosha-alias}: {folder-name} |_
 #[derive(Debug, Clone)]
 pub struct KoshaDir {
     pub alias: String,
@@ -72,7 +72,7 @@ pub struct Repository {
 }
 
 impl Repository {
-    // _vyasa check checks all non human meant files_
+    // _| vyasa check checks all non human meant files |_
     pub fn parse(path: &Path) -> Result<Self, String> {
         let mut repo = Repository::default();
 
@@ -97,7 +97,7 @@ impl Repository {
                 continue;
             }
 
-            // _vyasa check checks all non human meant files_
+            // _| vyasa check checks all non human meant files |_
             // skip binary and human-meant files (xml, images, etc.)
             let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
             if should_skip_file(ext) {
@@ -213,7 +213,7 @@ pub struct PlaceholderValue {
     pub line: usize,
 }
 
-// _mantras should use inline syntax not block because they are meant to be short_
+// _| mantras should use inline syntax not block because they are meant to be short |_
 fn parse_file(content: &str, file_name: &str, repo: &mut Repository) {
     let lines: Vec<&str> = content.lines().collect();
 
@@ -454,15 +454,20 @@ fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, parag
             }
         }
 
-        // _reference_ with optional @kosha
-        if c == '_' {
+        // reference with optional @kosha
+        if c == '_' && chars.peek() == Some(&'|') {
+            chars.next(); // consume |
             let mut ref_text = String::new();
 
-            for c in chars.by_ref() {
-                if c == '_' {
-                    break;
+            loop {
+                match chars.next() {
+                    Some('|') if chars.peek() == Some(&'_') => {
+                        chars.next(); // consume _
+                        break;
+                    }
+                    Some(c) => ref_text.push(c),
+                    None => break,
                 }
-                ref_text.push(c);
             }
 
             let ref_text = ref_text.trim().to_string();
@@ -558,7 +563,7 @@ fn extract_paragraph_commentary(paragraph: &str, mantra_text: &str) -> String {
     trimmed.to_string()
 }
 
-// _mantra commentary can be in same para_ - mark mantras as explained if they have nearby commentary
+// _| mantra commentary can be in same para |_ - mark mantras as explained if they have nearby commentary
 fn mark_explained_mantras(_repo: &mut Repository) {
     // For now, mantras are marked as explained during parsing if they have
     // text in the same line. A more sophisticated approach could look at
@@ -592,7 +597,7 @@ fn resolve_template_references(repo: &mut Repository) {
     }
 }
 
-// _template placeholders can include example values as {name=example}_
+// _| template placeholders can include example values as {name=example} |_
 fn extract_placeholder_name(placeholder_content: &str) -> &str {
     if let Some(eq_pos) = placeholder_content.find('=') {
         &placeholder_content[..eq_pos]
@@ -746,7 +751,7 @@ fn extract_values_from_reference(template: &str, reference: &str) -> Vec<(String
     results
 }
 
-// _vyasa check checks all non human meant files_
+// _| vyasa check checks all non human meant files |_
 // human-meant: configs, data files, binaries - skip these
 // source code and docs: scan for mantras
 fn should_skip_file(ext: &str) -> bool {
@@ -790,13 +795,13 @@ pub fn find_repo_root(path: &Path) -> Option<std::path::PathBuf> {
 fn load_kosha_config(repo_root: &Path) -> KoshaConfig {
     let mut config = KoshaConfig::default();
 
-    // _.vyasa/kosha.md contains kosha configuration_
+    // _| .vyasa/kosha.md contains kosha configuration |_
     let kosha_file = repo_root.join(".vyasa/kosha.md");
     if let Ok(content) = fs::read_to_string(&kosha_file) {
         parse_kosha_aliases(&content, &mut config);
     }
 
-    // _.vyasa/kosha.local.md stores local folder overrides_
+    // _| .vyasa/kosha.local.md stores local folder overrides |_
     let local_file = repo_root.join(".vyasa/kosha.local.md");
     if let Ok(content) = fs::read_to_string(&local_file) {
         parse_kosha_local(&content, &mut config);

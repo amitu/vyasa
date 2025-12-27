@@ -1,6 +1,6 @@
 > **^.vyasa/kosha.md contains kosha configuration^** - the kosha config file lives at `.vyasa/kosha.md` in your repository root. it defines aliases for external knowledge repositories you want to reference.
 
-> **^kosha references use @suffix^** - to reference a mantra from another kosha, use `_mantra text_`@kosha-name`` after the closing underscore. this creates cross-repository knowledge links.
+> **^kosha references use @suffix^** - to reference a mantra from another kosha, use `_| mantra text |_`@kosha-name`` after the closing `|_`. this creates cross-repository knowledge links.
 
 > **^kosha-alias {kosha-alias}: {kosha-value}^** - defines an alias for an external kosha. the alias is a short name for @references, the value specifies location.
 
@@ -14,7 +14,7 @@
 
 > **^kosha.local.md required for non-folder koshas^** - if kosha.md references git or fastn-kosha (not local folder), you must provide local path in kosha.local.md before vyasa can resolve references.
 
-> **^when a mantra from other kosha is referred, that mantra must exist in canon of that kosha^** - referencing `_mantra_`@physics`` requires that "mantra" is in the canon.md of the physics kosha. this ensures you only depend on accepted, stable knowledge from external sources.
+> **^when a mantra from other kosha is referred, that mantra must exist in canon of that kosha^** - referencing `_| mantra |_`@physics`` requires that "mantra" is in the canon.md of the physics kosha. this ensures you only depend on accepted, stable knowledge from external sources.
 
 > **^external mantras can be included in your canon^** - you can add `^mantra^@kosha` entries to your canon.md to cite accepted knowledge from other koshas. the mantra must exist in that kosha's canon.
 

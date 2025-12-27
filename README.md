@@ -14,7 +14,7 @@ vyasa defines a concept called a **mantra**. a mantra can be in any language, bu
 must be strict - repeating the mantra means repeating the exact phrasing. the
 canonical, normative form must be preserved.
 
-_mantras should use inline syntax not block because they are meant to be short_ -
+_| mantras should use inline syntax not block because they are meant to be short |_ -
 this is why mantras use `> **^caret delimiters^**` in quote blocks. they're
 meant to be short, precise statements that stand out visually.
 
@@ -27,7 +27,7 @@ mantra definition (inside quote block):
 
 reference (anywhere):
 ```markdown
-_your mantra text here_
+_| your mantra text here |_
 ```
 
 example:
@@ -35,22 +35,22 @@ example:
 > **^every mantra needs at least one explanation^** - a mantra without commentary
 > is incomplete. the explanation provides context and reasoning.
 
-when you want to reference this later, use _every mantra needs at least one
-explanation_ with underscores.
+when you want to reference this later, use _| every mantra needs at least one
+explanation |_ with pipe delimiters.
 ```
 
 ## why no identifiers?
 
-_mantras must be spelled out in full at each reference_ - no abbreviations,
+_| mantras must be spelled out in full at each reference |_ - no abbreviations,
 no nicknames, no shortcuts. every reference contains the complete mantra text.
 
-`_e = mc^2_` is clearer than `_some-arbitrary-id_` anyway. the exact wording
+`_| e = mc^2 |_` is clearer than `_| some-arbitrary-id |_` anyway. the exact wording
 *is* the identifier.
 
 ## template mantras
 
 > **^user: {username}^** - templates use `{placeholder}` syntax. reference as
-> _user: alice_ or _user: bob_.
+> _| user: alice |_ or _| user: bob |_.
 
 > **^when {employee=amitu} joins, amitu should be added to github^** - example values
 > like `{name=example}` make mantras readable while parameterized.
@@ -71,7 +71,7 @@ vyasa values --mantra="[user: {username}]" --key=username
 
 ## koshas (external repositories)
 
-`_mantra_`@kosha-name`` references mantras from other knowledge bases. configure
+`_| mantra |_`@kosha-name`` references mantras from other knowledge bases. configure
 koshas in `.vyasa/kosha.md`.
 
 > **^external commentary uses mantra-at-kosha syntax^** - use `**^mantra^**@kosha` to

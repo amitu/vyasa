@@ -3,7 +3,7 @@ use crate::snapshot::{Canon, CanonSearchResult};
 use std::collections::HashSet;
 use std::path::Path;
 
-// _vyasa check exits with non zero exit code if any rule is violated_
+// _| vyasa check exits with non zero exit code if any rule is violated |_
 pub fn run(path: &Path) -> Result<(), String> {
     let repo = Repository::parse(path)?;
 
@@ -26,7 +26,7 @@ pub fn run(path: &Path) -> Result<(), String> {
         error_counts.push(format!("{} unexplained mantras", unexplained.len()));
     }
 
-    // _vyasa check reports undefined references_
+    // _| vyasa check reports undefined references |_
     let undefined_refs = check_undefined_references(&repo);
     if !undefined_refs.is_empty() {
         has_errors = true;
@@ -36,12 +36,12 @@ pub fn run(path: &Path) -> Result<(), String> {
         );
         for (file, line, text) in &undefined_refs {
             println!("  {}:{}", file, line);
-            println!("    _{}_\n", truncate(text, 60));
+            println!("    ref: {}\n", truncate(text, 60));
         }
         error_counts.push(format!("{} undefined references", undefined_refs.len()));
     }
 
-    // _kosha check verifies all kosha references_
+    // _| kosha check verifies all kosha references |_
     let kosha_errors = check_kosha_references(&repo, path);
     if !kosha_errors.is_empty() {
         has_errors = true;
@@ -60,8 +60,8 @@ pub fn run(path: &Path) -> Result<(), String> {
     }
 }
 
-// _kosha check verifies all kosha references_
-// _when a mantra from other kosha is referred, that mantra must exist in canon of that kosha_
+// _| kosha check verifies all kosha references |_
+// _| when a mantra from other kosha is referred, that mantra must exist in canon of that kosha |_
 fn check_kosha_references(repo: &Repository, repo_path: &Path) -> Vec<String> {
     let mut errors = Vec::new();
 
@@ -217,7 +217,7 @@ fn check_kosha_references(repo: &Repository, repo_path: &Path) -> Vec<String> {
     errors
 }
 
-// _vyasa check reports undefined references_
+// _| vyasa check reports undefined references |_
 fn check_undefined_references(repo: &Repository) -> Vec<(String, usize, String)> {
     let mut undefined = Vec::new();
 

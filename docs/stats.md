@@ -8,7 +8,7 @@
 > ideally this equals the mantra count (all mantras explained).
 
 > **^stats displays reference count^** - the total number of times mantras are referenced
-> using `_mantra_` syntax. a mantra referenced five times adds five to this count.
+> using `_| mantra |_` syntax. a mantra referenced five times adds five to this count.
 
 > **^stats displays unreferenced mantra count^** - mantras that exist but are never
 > referenced anywhere. high numbers might indicate orphaned knowledge.
