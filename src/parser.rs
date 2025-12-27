@@ -211,28 +211,95 @@ pub struct PlaceholderValue {
 // ~mantras should use inline syntax not block because they are meant to be short~
 fn parse_file(content: &str, file_name: &str, repo: &mut Repository) {
     let lines: Vec<&str> = content.lines().collect();
+
+    // first pass: identify code block regions to skip
     let mut in_code_block = false;
+    let mut skip_lines: Vec<bool> = vec![false; lines.len()];
 
-    for (line_idx, line) in lines.iter().enumerate() {
-        let line_num = line_idx + 1;
-
-        // skip markdown code blocks (``` delimited)
+    for (i, line) in lines.iter().enumerate() {
         if line.trim().starts_with("```") {
             in_code_block = !in_code_block;
-            continue;
+            skip_lines[i] = true;
+        } else {
+            skip_lines[i] = in_code_block;
         }
+    }
 
-        if in_code_block {
-            continue;
-        }
+    // second pass: identify paragraphs and parse them
+    let paragraphs = extract_paragraphs(&lines, &skip_lines);
 
-        // parse both mantra definitions (^...^) and references (~...~) from this line
-        parse_line(line, file_name, line_num, repo);
+    for para in paragraphs {
+        parse_paragraph(&para, file_name, repo);
     }
 }
 
-// Parse a single line for mantra definitions and references
-fn parse_line(line: &str, file_name: &str, line_num: usize, repo: &mut Repository) {
+#[derive(Debug)]
+struct Paragraph {
+    text: String,
+    start_line: usize,  // 1-indexed
+    lines: Vec<(usize, String)>,  // (line_num, text)
+}
+
+fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
+    let mut paragraphs = Vec::new();
+    let mut current_lines: Vec<(usize, String)> = Vec::new();
+    let mut start_line = 0;
+
+    for (i, line) in lines.iter().enumerate() {
+        let line_num = i + 1;
+
+        if skip_lines[i] {
+            // end current paragraph if any
+            if !current_lines.is_empty() {
+                let text = current_lines.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
+                paragraphs.push(Paragraph {
+                    text,
+                    start_line,
+                    lines: std::mem::take(&mut current_lines),
+                });
+            }
+            continue;
+        }
+
+        if line.trim().is_empty() {
+            // empty line ends paragraph
+            if !current_lines.is_empty() {
+                let text = current_lines.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
+                paragraphs.push(Paragraph {
+                    text,
+                    start_line,
+                    lines: std::mem::take(&mut current_lines),
+                });
+            }
+        } else {
+            if current_lines.is_empty() {
+                start_line = line_num;
+            }
+            current_lines.push((line_num, line.to_string()));
+        }
+    }
+
+    // don't forget the last paragraph
+    if !current_lines.is_empty() {
+        let text = current_lines.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
+        paragraphs.push(Paragraph {
+            text,
+            start_line,
+            lines: current_lines,
+        });
+    }
+
+    paragraphs
+}
+
+fn parse_paragraph(para: &Paragraph, file_name: &str, repo: &mut Repository) {
+    // parse each line for mantras and references
+    for (line_num, line) in &para.lines {
+        parse_line_with_paragraph(line, file_name, *line_num, &para.text, repo);
+    }
+}
+
+fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, paragraph: &str, repo: &mut Repository) {
     let mut chars = line.chars().peekable();
     let mut in_backtick = false;
 
@@ -280,15 +347,15 @@ fn parse_line(line: &str, file_name: &str, line_num: usize, repo: &mut Repositor
                         });
                     }
                 } else {
-                    // local mantra definition
+                    // local mantra definition - use paragraph as commentary
                     let is_template = mantra_text.contains('{') && mantra_text.contains('}');
-                    let commentary = extract_commentary(line, &mantra_text);
-                    let has_explanation = commentary.is_some();
+                    let commentary = extract_paragraph_commentary(paragraph, &mantra_text);
+                    let has_explanation = !commentary.is_empty();
 
                     // add to definitions Vec (allows multiple commentaries per mantra)
                     repo.definitions.push(MantraDefinition {
                         mantra_text: mantra_text.clone(),
-                        commentary: commentary.unwrap_or_default(),
+                        commentary,
                         file: file_name.to_string(),
                         line: line_num,
                         is_template,
@@ -348,26 +415,49 @@ fn parse_line(line: &str, file_name: &str, line_num: usize, repo: &mut Repositor
     }
 }
 
-// Extract commentary text from a line (text after the mantra definition)
-fn extract_commentary(line: &str, mantra_text: &str) -> Option<String> {
-    // remove the mantra definition from the line and check if there's other text
+
+// Extract commentary from paragraph (entire paragraph minus mantra definitions)
+fn extract_paragraph_commentary(paragraph: &str, mantra_text: &str) -> String {
+    // remove all mantra definitions from the paragraph
+    let mut result = paragraph.to_string();
+
+    // remove this specific mantra definition
     let pattern = format!("^{}^", mantra_text);
-    let remaining = line.replace(&pattern, "");
-    let trimmed = remaining.trim();
+    result = result.replace(&pattern, "");
 
-    // has commentary if there's non-empty text that isn't just punctuation
-    if !trimmed.is_empty() && trimmed.chars().any(|c| c.is_alphanumeric()) {
-        // strip leading " - " which is common commentary prefix
-        let commentary = trimmed.strip_prefix("- ").unwrap_or(trimmed);
-        Some(commentary.to_string())
-    } else {
-        None
+    // also remove any other mantra definitions in the paragraph
+    // (a paragraph might define multiple mantras)
+    let mut cleaned = String::new();
+    let mut chars = result.chars().peekable();
+    let mut in_mantra = false;
+
+    while let Some(c) = chars.next() {
+        if c == '^' && !in_mantra {
+            in_mantra = true;
+            continue;
+        }
+        if c == '^' && in_mantra {
+            in_mantra = false;
+            continue;
+        }
+        if !in_mantra {
+            cleaned.push(c);
+        }
     }
-}
 
-// Check if a line has text beyond just the mantra definition
-fn line_has_commentary(line: &str, mantra_text: &str) -> bool {
-    extract_commentary(line, mantra_text).is_some()
+    // clean up the result
+    let trimmed = cleaned
+        .lines()
+        .map(|l| l.trim())
+        .filter(|l| !l.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    // strip leading " - " which is common commentary prefix
+    let trimmed = trimmed.trim();
+    let trimmed = trimmed.strip_prefix("- ").unwrap_or(trimmed);
+
+    trimmed.to_string()
 }
 
 // ~mantra commentary can be in same para~ - mark mantras as explained if they have nearby commentary
