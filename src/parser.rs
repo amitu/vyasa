@@ -249,6 +249,7 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
     let mut paragraphs = Vec::new();
     let mut current_lines: Vec<(usize, String)> = Vec::new();
     let mut start_line = 0;
+    let mut in_quote_block = false;
 
     for (i, line) in lines.iter().enumerate() {
         let line_num = i + 1;
@@ -262,25 +263,67 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                     start_line,
                     lines: std::mem::take(&mut current_lines),
                 });
+                in_quote_block = false;
             }
             continue;
         }
 
-        if line.trim().is_empty() {
-            // empty line ends paragraph
-            if !current_lines.is_empty() {
+        let is_quote_line = line.trim_start().starts_with('>');
+        let is_empty = line.trim().is_empty();
+
+        if in_quote_block {
+            // inside a quote block - continue until non-quote, non-empty line
+            if is_quote_line {
+                current_lines.push((line_num, line.to_string()));
+            } else if is_empty {
+                // empty line inside quote block - include it to preserve structure
+                current_lines.push((line_num, ">".to_string()));
+            } else {
+                // non-quote line ends the quote block
                 let text = current_lines.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
                 paragraphs.push(Paragraph {
                     text,
                     start_line,
                     lines: std::mem::take(&mut current_lines),
                 });
+                in_quote_block = false;
+                // start new paragraph with this line
+                start_line = line_num;
+                current_lines.push((line_num, line.to_string()));
             }
         } else {
-            if current_lines.is_empty() {
+            // not in quote block
+            if is_empty {
+                // empty line ends paragraph
+                if !current_lines.is_empty() {
+                    let text = current_lines.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
+                    paragraphs.push(Paragraph {
+                        text,
+                        start_line,
+                        lines: std::mem::take(&mut current_lines),
+                    });
+                }
+            } else if is_quote_line {
+                // starting a quote block
+                if !current_lines.is_empty() {
+                    // end previous non-quote paragraph
+                    let text = current_lines.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
+                    paragraphs.push(Paragraph {
+                        text,
+                        start_line,
+                        lines: std::mem::take(&mut current_lines),
+                    });
+                }
+                in_quote_block = true;
                 start_line = line_num;
+                current_lines.push((line_num, line.to_string()));
+            } else {
+                // regular line
+                if current_lines.is_empty() {
+                    start_line = line_num;
+                }
+                current_lines.push((line_num, line.to_string()));
             }
-            current_lines.push((line_num, line.to_string()));
         }
     }
 
@@ -298,13 +341,34 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
 }
 
 fn parse_paragraph(para: &Paragraph, file_name: &str, repo: &mut Repository) {
-    // parse each line for mantras and references
-    for (line_num, line) in &para.lines {
-        parse_line_with_paragraph(line, file_name, *line_num, &para.text, repo);
+    // check if this is a quote block (mantra definitions require quote blocks)
+    let is_quote_block = para.text.trim_start().starts_with('>');
+
+    if is_quote_block {
+        // strip > prefix from paragraph text for commentary extraction
+        let unquoted_para: String = para.text
+            .lines()
+            .map(|l| l.trim_start().strip_prefix('>').unwrap_or(l).trim_start())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        // parse each line (strip > prefix) for mantras and references
+        for (line_num, line) in &para.lines {
+            let unquoted_line = line.trim_start()
+                .strip_prefix('>')
+                .unwrap_or(line)
+                .trim_start();
+            parse_line_with_paragraph(unquoted_line, file_name, *line_num, &unquoted_para, repo, true);
+        }
+    } else {
+        // not a quote block - only parse for references, not definitions
+        for (line_num, line) in &para.lines {
+            parse_line_with_paragraph(line, file_name, *line_num, &para.text, repo, false);
+        }
     }
 }
 
-fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, paragraph: &str, repo: &mut Repository) {
+fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, paragraph: &str, repo: &mut Repository, allow_definitions: bool) {
     let mut chars = line.chars().peekable();
     let mut in_backtick = false;
 
@@ -320,7 +384,8 @@ fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, parag
 
         // **^mantra definition^** - bold canonical commentary syntax (required)
         // or **^mantra^**@kosha for external commentary
-        if c == '*' && chars.peek() == Some(&'*') {
+        // only allowed inside quote blocks (> ...)
+        if allow_definitions && c == '*' && chars.peek() == Some(&'*') {
             chars.next(); // consume second *
             if chars.peek() == Some(&'^') {
                 chars.next(); // consume ^
