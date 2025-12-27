@@ -1,4 +1,5 @@
-use crate::parser::Repository;
+use crate::parser::{find_repo_root, Repository};
+use crate::snapshot::{compare_with_canon, Canon, CanonSearchResult, MantraStatus};
 use std::path::Path;
 
 pub fn run(path: &Path, buckets: usize) -> Result<(), String> {
@@ -10,6 +11,13 @@ pub fn run(path: &Path, buckets: usize) -> Result<(), String> {
     let total_explanations = repo.mantras.values().filter(|m| m.has_explanation).count();
     let unreferenced = repo.unreferenced_mantras().len();
 
+    // load canon for stats
+    let repo_root = find_repo_root(path);
+    let canon = repo_root.as_ref().and_then(|r| match Canon::find(r) {
+        CanonSearchResult::Found(c) => Some(c),
+        _ => None,
+    });
+
     println!("vyasa repository stats");
     println!("======================\n");
 
@@ -17,6 +25,39 @@ pub fn run(path: &Path, buckets: usize) -> Result<(), String> {
     println!("explanations: {}", total_explanations);
     println!("references:   {}", total_references);
     println!("unreferenced: {}", unreferenced);
+
+    // canon stats
+    if let Some(ref canon) = canon {
+        let mantras_with_status = compare_with_canon(&repo, canon);
+        let accepted = mantras_with_status
+            .iter()
+            .filter(|m| matches!(m.status, MantraStatus::Accepted))
+            .count();
+        let new = mantras_with_status
+            .iter()
+            .filter(|m| matches!(m.status, MantraStatus::New))
+            .count();
+        let changed = mantras_with_status
+            .iter()
+            .filter(|m| matches!(m.status, MantraStatus::Changed { .. }))
+            .count();
+        let orphaned = mantras_with_status
+            .iter()
+            .filter(|m| matches!(m.status, MantraStatus::OrphanedInCanon { .. }))
+            .count();
+
+        println!("\ncanon:");
+        println!("  accepted:   {}", accepted);
+        println!("  pending:    {}", new);
+        if changed > 0 {
+            println!("  changed:    {}", changed);
+        }
+        if orphaned > 0 {
+            println!("  orphaned:   {}", orphaned);
+        }
+    } else {
+        println!("\ncanon:        (no canon.md found)");
+    }
 
     if total_mantras == 0 {
         return Ok(());
@@ -110,7 +151,7 @@ fn print_histogram(
         };
         let bar: String = "█".repeat(bar_len);
         if start == end {
-            println!("      {} refs: {:>4} {}", start, count, bar);
+            println!("  {:>3}     refs: {:>4} {}", start, count, bar);
         } else {
             println!("  {:>3}-{:<3} refs: {:>4} {}", start, end, count, bar);
         }

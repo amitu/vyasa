@@ -52,6 +52,17 @@ pub fn run(path: &Path) -> Result<(), String> {
         error_counts.push(format!("{} kosha errors", kosha_errors.len()));
     }
 
+    // _| check validates canon entries exist in source files |_
+    let canon_errors = check_canon(&repo, path);
+    if !canon_errors.is_empty() {
+        has_errors = true;
+        println!("found {} canon errors:\n", canon_errors.len());
+        for error in &canon_errors {
+            println!("  {}\n", error);
+        }
+        error_counts.push(format!("{} canon errors", canon_errors.len()));
+    }
+
     if has_errors {
         Err(error_counts.join(", "))
     } else {
@@ -252,4 +263,52 @@ fn truncate(s: &str, max_len: usize) -> String {
     } else {
         first_line.to_string()
     }
+}
+
+// _| check validates canon entries exist in source files |_
+fn check_canon(repo: &Repository, repo_path: &Path) -> Vec<String> {
+    let mut errors = Vec::new();
+
+    let repo_root = match find_repo_root(repo_path) {
+        Some(r) => r,
+        None => return errors, // no repo root, nothing to check
+    };
+
+    let canon = match Canon::find(&repo_root) {
+        CanonSearchResult::Found(c) => c,
+        CanonSearchResult::NotFound => return errors, // no canon, nothing to check
+        CanonSearchResult::Multiple(paths) => {
+            errors.push(format!(
+                "multiple canon files found:\n    {}",
+                paths.join("\n    ")
+            ));
+            return errors;
+        }
+        CanonSearchResult::Invalid { path, errors: errs } => {
+            errors.push(format!(
+                "invalid canon at {}:\n    {}",
+                path,
+                errs.join("\n    ")
+            ));
+            return errors;
+        }
+    };
+
+    // check each canon entry exists in source files (not orphaned)
+    for (mantra_text, entry) in &canon.entries {
+        // skip external entries (those have @kosha suffix)
+        if entry.external_kosha.is_some() {
+            continue;
+        }
+
+        // check if this mantra exists in source definitions
+        if !repo.mantras.contains_key(mantra_text) {
+            errors.push(format!(
+                "canon entry not found in source files: ^{}^",
+                truncate(mantra_text, 50)
+            ));
+        }
+    }
+
+    errors
 }

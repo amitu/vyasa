@@ -32,6 +32,9 @@ enum Commands {
         /// Path to the repository (defaults to current directory)
         #[arg(default_value = ".")]
         path: PathBuf,
+        /// Show detailed output with each mantra
+        #[arg(long, short)]
+        verbose: bool,
     },
     /// Show details about a specific mantra
     Mantra {
@@ -94,7 +97,7 @@ fn main() {
 
     let result = match cli.command {
         Commands::Check { path } => check::run(&path),
-        Commands::Status { path } => status::run(&path),
+        Commands::Status { path, verbose } => status::run(&path, verbose),
         Commands::Mantra {
             text,
             references,

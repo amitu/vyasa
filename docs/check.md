@@ -25,3 +25,7 @@
 > **^check accepts a path argument^** - by default, vyasa check scans the current
 > directory. pass a path to check a specific folder or file: `vyasa check ./docs`
 > or `vyasa check ./docs/syntax.vyasa`.
+
+> **^check validates canon entries exist in source files^** - every mantra in
+> canon.md must also be defined in a source file. canon is a digest of accepted
+> mantras, not a place to define new ones. orphaned canon entries are errors.

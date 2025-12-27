@@ -1,8 +1,9 @@
 use crate::parser::{find_repo_root, Repository};
 use crate::snapshot::{compare_with_canon, Canon, CanonSearchResult, MantraStatus};
+use std::collections::HashMap;
 use std::path::Path;
 
-pub fn run(path: &Path) -> Result<(), String> {
+pub fn run(path: &Path, verbose: bool) -> Result<(), String> {
     let repo = Repository::parse(path)?;
 
     let repo_root = find_repo_root(path).ok_or("could not find repository root")?;
@@ -11,12 +12,12 @@ pub fn run(path: &Path) -> Result<(), String> {
         CanonSearchResult::NotFound => {
             println!("no canon.md found\n");
             println!("create a canon.md file at the repository root to track accepted mantras.");
-            println!("format: ^mantra^ - commentary\n");
+            println!("format: filename.md followed by > **^mantra^** - commentary\n");
             Canon::default()
         }
         CanonSearchResult::Found(canon) => {
             if let Some(ref path) = canon.path {
-                println!("using {}\n", path);
+                println!("using {}", path);
             }
             canon
         }
@@ -59,58 +60,90 @@ pub fn run(path: &Path) -> Result<(), String> {
 
     // show orphaned mantras first (these are errors)
     if !orphaned_mantras.is_empty() {
-        println!("{} mantras in canon but not in any source file:\n", orphaned_mantras.len());
+        println!("\n{} orphaned (in canon but not in source):", orphaned_mantras.len());
         for mantra in &orphaned_mantras {
             println!("  ^{}^", truncate(&mantra.mantra_text, 60));
-            if let MantraStatus::OrphanedInCanon { canon_commentary } = &mantra.status {
-                println!("    \"{}\"", truncate(canon_commentary, 60));
-            }
-            println!();
         }
-        println!("canon is a digest only - mantras must be defined in source files.\n");
     }
 
     if new_mantras.is_empty() && changed_mantras.is_empty() && orphaned_mantras.is_empty() {
-        println!("all {} mantras are in canon", mantras.len());
+        println!("\nall {} mantras are in canon", mantras.len());
         return Ok(());
     }
 
-    // show new mantras
+    // show new mantras grouped by file
     if !new_mantras.is_empty() {
-        println!("{} new mantras not yet in canon:\n", new_mantras.len());
-        for mantra in &new_mantras {
-            println!("  ^{}^", truncate(&mantra.mantra_text, 60));
-            // show first definition's location and commentary
-            if let Some(def) = mantra.definitions.first() {
-                println!("    {}:{}", def.file, def.line);
-                if !def.commentary.is_empty() {
-                    println!("    \"{}\"", truncate(&def.commentary, 60));
+        if verbose {
+            println!("\n{} pending:\n", new_mantras.len());
+            for mantra in &new_mantras {
+                println!("  ^{}^", truncate(&mantra.mantra_text, 60));
+                if let Some(def) = mantra.definitions.first() {
+                    println!("    {}:{}", def.file, def.line);
+                    if !def.commentary.is_empty() {
+                        println!("    \"{}\"", truncate(&def.commentary, 60));
+                    }
+                }
+                if mantra.definitions.len() > 1 {
+                    println!("    ({} definitions total)", mantra.definitions.len());
+                }
+                println!();
+            }
+        } else {
+            // compact view: group by file (count all definitions, not just first)
+            let mut by_file: HashMap<String, usize> = HashMap::new();
+            for mantra in &new_mantras {
+                for def in &mantra.definitions {
+                    *by_file.entry(def.file.clone()).or_insert(0) += 1;
                 }
             }
-            if mantra.definitions.len() > 1 {
-                println!("    ({} definitions total)", mantra.definitions.len());
+
+            let mut files: Vec<_> = by_file.into_iter().collect();
+            files.sort_by(|a, b| b.1.cmp(&a.1)); // sort by count descending
+
+            println!("\n{} pending ({} definitions):", new_mantras.len(),
+                files.iter().map(|(_, c)| c).sum::<usize>());
+            for (file, count) in &files {
+                println!("  {:>3}  {}", count, file);
             }
-            println!();
         }
     }
 
     // show changed mantras
     if !changed_mantras.is_empty() {
-        println!("{} mantras with changed commentary:\n", changed_mantras.len());
-        for mantra in &changed_mantras {
-            println!("  ^{}^", truncate(&mantra.mantra_text, 60));
-            if let MantraStatus::Changed { canon_commentary } = &mantra.status {
-                println!("    canon: \"{}\"", truncate(canon_commentary, 50));
-                if let Some(def) = mantra.definitions.first() {
-                    println!("    now:   \"{}\"", truncate(&def.commentary, 50));
+        if verbose {
+            println!("\n{} changed:\n", changed_mantras.len());
+            for mantra in &changed_mantras {
+                println!("  ^{}^", truncate(&mantra.mantra_text, 60));
+                if let MantraStatus::Changed { canon_commentary } = &mantra.status {
+                    println!("    canon: \"{}\"", truncate(canon_commentary, 50));
+                    if let Some(def) = mantra.definitions.first() {
+                        println!("    now:   \"{}\"", truncate(&def.commentary, 50));
+                    }
+                }
+                println!();
+            }
+        } else {
+            // compact view: group by file (count all definitions, not just first)
+            let mut by_file: HashMap<String, usize> = HashMap::new();
+            for mantra in &changed_mantras {
+                for def in &mantra.definitions {
+                    *by_file.entry(def.file.clone()).or_insert(0) += 1;
                 }
             }
-            println!();
+
+            let mut files: Vec<_> = by_file.into_iter().collect();
+            files.sort_by(|a, b| b.1.cmp(&a.1));
+
+            println!("\n{} changed ({} definitions):", changed_mantras.len(),
+                files.iter().map(|(_, c)| c).sum::<usize>());
+            for (file, count) in &files {
+                println!("  {:>3}  {}", count, file);
+            }
         }
     }
 
     println!(
-        "summary: {} in canon, {} new, {} changed, {} orphaned",
+        "\nsummary: {} accepted, {} pending, {} changed, {} orphaned",
         accepted_count,
         new_mantras.len(),
         changed_mantras.len(),
