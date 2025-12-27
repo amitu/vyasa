@@ -4,12 +4,15 @@ use std::fs;
 use std::path::Path;
 
 /// The canon.md file contains accepted mantras for this kosha
+/// Supports versioning: canon.md (single) or 001.md, 002.md, etc. (versioned)
 #[derive(Debug, Clone, Default)]
 pub struct Canon {
     /// Mantra text -> canonical commentary
     pub entries: HashMap<String, CanonEntry>,
-    /// Path to the canon.md file (if found)
+    /// Path to the canon file (if found)
     pub path: Option<String>,
+    /// Version number (None for canon.md, Some(n) for numbered files)
+    pub version: Option<u32>,
 }
 
 #[derive(Debug, Clone)]
@@ -34,11 +37,40 @@ pub enum CanonSearchResult {
 }
 
 impl Canon {
-    /// Search for canon.md at repo root
+    /// Search for canon file at repo root
+    /// Supports: canon.md (single) or versioned files like 001.md, 002.md, etc.
+    /// When versioned, only the highest numbered file is used for checking.
     pub fn find(repo_root: &Path) -> CanonSearchResult {
+        // First, look for versioned canon files (numbered .md files)
+        let mut versioned_files: Vec<(u32, String)> = Vec::new();
+
+        if let Ok(entries) = fs::read_dir(repo_root) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_file() {
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        // Check if filename is a number followed by .md
+                        if let Some(stem) = name.strip_suffix(".md") {
+                            if let Ok(version) = stem.parse::<u32>() {
+                                versioned_files.push((version, path.to_string_lossy().to_string()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // If we have versioned files, use the highest version
+        if !versioned_files.is_empty() {
+            versioned_files.sort_by(|a, b| b.0.cmp(&a.0)); // Sort descending
+            let (version, path) = &versioned_files[0];
+            return Self::load_canon_file(path, Some(*version));
+        }
+
+        // Fall back to canon.md
         let canon_path = repo_root.join("canon.md");
 
-        // Check for multiple canon.md files
+        // Check for multiple canon.md files in subdirectories (error case)
         let mut found_paths = Vec::new();
         if canon_path.exists() {
             found_paths.push(canon_path.to_string_lossy().to_string());
@@ -65,23 +97,27 @@ impl Canon {
             return CanonSearchResult::Multiple(found_paths);
         }
 
-        // Read and validate the canon file
-        let path = &found_paths[0];
+        Self::load_canon_file(&found_paths[0], None)
+    }
+
+    /// Load and validate a canon file
+    fn load_canon_file(path: &str, version: Option<u32>) -> CanonSearchResult {
         match fs::read_to_string(path) {
             Ok(content) => {
                 let errors = validate_canon_content(&content);
                 if !errors.is_empty() {
                     return CanonSearchResult::Invalid {
-                        path: path.clone(),
+                        path: path.to_string(),
                         errors,
                     };
                 }
                 let mut canon = Self::parse(&content);
-                canon.path = Some(path.clone());
+                canon.path = Some(path.to_string());
+                canon.version = version;
                 CanonSearchResult::Found(canon)
             }
             Err(e) => CanonSearchResult::Invalid {
-                path: path.clone(),
+                path: path.to_string(),
                 errors: vec![format!("failed to read file: {}", e)],
             },
         }
@@ -140,6 +176,7 @@ impl Canon {
         Self {
             entries,
             path: None,
+            version: None,
         }
     }
 
