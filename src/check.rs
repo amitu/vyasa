@@ -31,6 +31,24 @@ pub fn run(path: &Path) -> Result<(), String> {
         error_counts.push(format!("{} unexplained mantras", unexplained.len()));
     }
 
+    // check for duplicate bhasyas (same mantra + commentary)
+    let shastra_name = repo.config.name.as_ref().unwrap();
+    let duplicate_bhasyas = check_duplicate_bhasyas(&repo);
+    if !duplicate_bhasyas.is_empty() {
+        has_errors = true;
+        println!(
+            "found {} duplicate bhasyas:\n",
+            duplicate_bhasyas.len()
+        );
+        for (file, line, text, first_file, first_line) in &duplicate_bhasyas {
+            println!("  {}:{}", file, line);
+            println!("    ^{}^", truncate(text, 60));
+            println!("    first defined at {}:{}", first_file, first_line);
+            println!("    use `shastra: {}` to quote\n", shastra_name);
+        }
+        error_counts.push(format!("{} duplicate bhasyas", duplicate_bhasyas.len()));
+    }
+
     // _| vyasa check reports undefined anusrits |_
     let (undefined_refs, ambiguous_refs) = check_undefined_anusrits(&repo);
     if !undefined_refs.is_empty() {
@@ -185,9 +203,32 @@ fn check_shastra_quotes(repo: &Repository) -> (Vec<String>, Vec<String>) {
     // cache parsed external shastras
     let mut shastra_repos: HashMap<String, Option<Repository>> = HashMap::new();
 
+    let self_name = repo.config.name.as_ref().map(|s| s.as_str());
+
     // find all bhasyas with shastra attribution
     for bhasya in &repo.bhasyas {
         if let Some(shastra_name) = &bhasya.shastra {
+            // check if this is a self-reference
+            if self_name == Some(shastra_name.as_str()) {
+                // self-reference: check against current repo
+                let has_mula = repo.mantras.contains_key(&bhasya.mantra_text);
+                if !has_mula {
+                    // check if it exists as tyakta only
+                    let has_any = repo.bhasyas.iter().any(|b| {
+                        b.mantra_text == bhasya.mantra_text && b.shastra.is_none()
+                    });
+                    if !has_any {
+                        errors.push(format!(
+                            "{}:{}: mantra not found in self: ^{}^",
+                            bhasya.file,
+                            bhasya.line,
+                            truncate(&bhasya.mantra_text, 30)
+                        ));
+                    }
+                }
+                continue;
+            }
+
             // resolve shastra name to path via shastra.json
             let Some(shastra_path) = repo.shastra_config.aliases.get(shastra_name) else {
                 errors.push(format!(
@@ -268,6 +309,35 @@ fn check_shastra_quotes(repo: &Repository) -> (Vec<String>, Vec<String>) {
     }
 
     (errors, warnings)
+}
+
+/// Check for duplicate bhasyas - same mantra + commentary must be unique
+fn check_duplicate_bhasyas(repo: &Repository) -> Vec<(String, usize, String, String, usize)> {
+    let mut duplicates = Vec::new();
+    // key: (mantra_text, commentary) -> (file, line)
+    let mut seen: HashMap<(&str, &str), (&str, usize)> = HashMap::new();
+
+    for bhasya in &repo.bhasyas {
+        // skip uddhrit (quoted from other shastras) - duplicates allowed
+        if bhasya.shastra.is_some() {
+            continue;
+        }
+
+        let key = (bhasya.mantra_text.as_str(), bhasya.commentary.as_str());
+        if let Some(&(first_file, first_line)) = seen.get(&key) {
+            duplicates.push((
+                bhasya.file.clone(),
+                bhasya.line,
+                bhasya.mantra_text.clone(),
+                first_file.to_string(),
+                first_line,
+            ));
+        } else {
+            seen.insert(key, (&bhasya.file, bhasya.line));
+        }
+    }
+
+    duplicates
 }
 
 // _| vyasa check reports undefined anusrits |_

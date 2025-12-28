@@ -17,6 +17,7 @@
 
 ### bhasya (definition)
 
+shastra: vyasa
 > **^bhasya creates a new mantra definition^** - the basic form using `> **^mantra^**`
 > creates a new mantra in your shastra with its commentary.
 
