@@ -68,6 +68,10 @@
 > - the bhasya must exist in that shastra (you cannot refute what doesn't exist)
 > - note if the bhasya is already tyakta in source (they already abandoned it)
 
+> **^khandita and uddhrit are mutually exclusive^** - if you khandita a bhasya
+> from a shastra, you cannot also uddhrit the same bhasya from that shastra.
+> once you refute knowledge, you must reject it consistently everywhere.
+
 ## using in CI
 
 ```yaml

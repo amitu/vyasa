@@ -31,3 +31,17 @@ khandita: physics
 
 Note: since `ether is the medium for light` is already tyakta in physics, vyasa
 will show a note that the source has already abandoned this bhasya.
+
+## Conflict: can't both khandita and uddhrit same bhasya (error)
+
+If you khandita a bhasya, you cannot also uddhrit it - that would be contradictory:
+
+```markdown
+khandita: physics
+> **^ether is the medium for light^** - we refute this
+
+shastra: physics
+> **^ether is the medium for light^** - but also quoting it? ERROR!
+```
+
+Once you refute a bhasya, you must reject it consistently everywhere.

@@ -120,6 +120,17 @@ pub fn run(path: &Path) -> Result<(), String> {
         }
     }
 
+    // check for conflicting khandita/uddhrit (can't both refute and quote same bhasya)
+    let conflict_errors = check_khandita_uddhrit_conflicts(&repo);
+    if !conflict_errors.is_empty() {
+        has_errors = true;
+        println!("found {} khandita/uddhrit conflicts:\n", conflict_errors.len());
+        for error in &conflict_errors {
+            println!("  {}\n", error);
+        }
+        error_counts.push(format!("{} khandita/uddhrit conflicts", conflict_errors.len()));
+    }
+
     if has_errors {
         Err(error_counts.join(", "))
     } else {
@@ -409,6 +420,43 @@ fn check_khandita(repo: &Repository) -> (Vec<String>, Vec<String>) {
     }
 
     (errors, notes)
+}
+
+/// Check that same bhasya is not both khandita and uddhrit from same shastra
+/// If you refute a bhasya, you must refute it consistently - no quoting it elsewhere
+fn check_khandita_uddhrit_conflicts(repo: &Repository) -> Vec<String> {
+    let mut errors = Vec::new();
+
+    // collect all khandita: (mantra_text, shastra) -> (file, line)
+    let mut khandita_refs: HashMap<(&str, &str), (&str, usize)> = HashMap::new();
+    for bhasya in &repo.bhasyas {
+        if let Some(ref shastra) = bhasya.khandita {
+            khandita_refs.insert(
+                (&bhasya.mantra_text, shastra),
+                (&bhasya.file, bhasya.line),
+            );
+        }
+    }
+
+    // check if any uddhrit matches a khandita
+    for bhasya in &repo.bhasyas {
+        if let Some(ref shastra) = bhasya.shastra {
+            let key = (bhasya.mantra_text.as_str(), shastra.as_str());
+            if let Some((khandita_file, khandita_line)) = khandita_refs.get(&key) {
+                errors.push(format!(
+                    "{}:{}: cannot uddhrit ^{}^ from '{}' - already khandita at {}:{}",
+                    bhasya.file,
+                    bhasya.line,
+                    truncate(&bhasya.mantra_text, 30),
+                    shastra,
+                    khandita_file,
+                    khandita_line
+                ));
+            }
+        }
+    }
+
+    errors
 }
 
 /// Check for duplicate bhasyas - same mantra + commentary must be unique
