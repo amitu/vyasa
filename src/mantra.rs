@@ -44,7 +44,7 @@ pub fn run(path: &Path, mantra_text: &str, show_references: bool) -> Result<(), 
         println!("no exact match, did you mean one of these?\n");
         for m in &partial {
             println!("  ^{}^", truncate(&m.mantra_text, 60));
-            if let Some(def) = m.definitions.first() {
+            if let Some(def) = m.bhasyas.first() {
                 println!("    {}:{}", def.file, def.line);
             }
         }
@@ -79,9 +79,9 @@ pub fn run(path: &Path, mantra_text: &str, show_references: bool) -> Result<(), 
         }
     }
 
-    if !mantra.definitions.is_empty() {
-        println!("definitions ({}):", mantra.definitions.len());
-        for def in &mantra.definitions {
+    if !mantra.bhasyas.is_empty() {
+        println!("bhasyas ({}):", mantra.bhasyas.len());
+        for def in &mantra.bhasyas {
             println!("  {}:{}", def.file, def.line);
             if !def.commentary.is_empty() {
                 println!("    \"{}\"", truncate(&def.commentary, 60));

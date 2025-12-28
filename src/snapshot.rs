@@ -1,4 +1,4 @@
-use crate::parser::{MantraDefinition, Repository};
+use crate::parser::{Bhasya, Repository};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -154,7 +154,7 @@ impl Canon {
                     .collect::<Vec<_>>()
                     .join("\n");
 
-                // find mantra definitions with optional @kosha suffix
+                // find mantras with optional @kosha suffix
                 for (mantra, kosha) in extract_mantras_with_kosha(&unquoted) {
                     let commentary = extract_canon_commentary(&unquoted, &mantra);
                     entries.insert(
@@ -314,7 +314,7 @@ fn extract_paragraphs(lines: &[&str]) -> Vec<Paragraph> {
     paragraphs
 }
 
-/// Extract mantra definitions with optional @kosha suffix
+/// Extract mantras with optional @kosha suffix
 /// Uses **^mantra^** bold syntax (required)
 /// Returns (mantra_text, optional_kosha)
 fn extract_mantras_with_kosha(paragraph: &str) -> Vec<(String, Option<String>)> {
@@ -393,12 +393,12 @@ fn extract_mantras(paragraph: &str) -> Vec<String> {
 }
 
 fn extract_canon_commentary(paragraph: &str, mantra_text: &str) -> String {
-    // remove all mantra definitions from the paragraph (**^mantra^** syntax)
+    // remove all mantra markers from the paragraph (**^mantra^** syntax)
     let mut result = paragraph.to_string();
     let pattern = format!("**^{}^**", mantra_text);
     result = result.replace(&pattern, "");
 
-    // remove any other mantra definitions
+    // remove any other mantra markers
     let mut cleaned = String::new();
     let mut chars = result.chars().peekable();
     let mut in_mantra = false;
@@ -482,34 +482,34 @@ pub enum MantraStatus {
     OrphanedInCanon { canon_commentary: String },
 }
 
-/// A unique mantra with all its definitions from the repo
+/// A unique mantra with all its bhasyas from the repo
 #[derive(Debug)]
 pub struct MantraWithStatus {
     pub mantra_text: String,
-    pub definitions: Vec<MantraDefinition>,
+    pub bhasyas: Vec<Bhasya>,
     pub status: MantraStatus,
 }
 
 /// Compare repo mantras against canon
 pub fn compare_with_canon(repo: &Repository, canon: &Canon) -> Vec<MantraWithStatus> {
-    // group definitions by mantra text
-    let mut by_mantra: HashMap<String, Vec<MantraDefinition>> = HashMap::new();
-    for def in &repo.definitions {
+    // group bhasyas by mantra text
+    let mut by_mantra: HashMap<String, Vec<Bhasya>> = HashMap::new();
+    for bhasya in &repo.bhasyas {
         by_mantra
-            .entry(def.mantra_text.clone())
+            .entry(bhasya.mantra_text.clone())
             .or_default()
-            .push(def.clone());
+            .push(bhasya.clone());
     }
 
     let mut results = Vec::new();
 
     // check mantras found in repo
-    for (mantra_text, definitions) in &by_mantra {
+    for (mantra_text, bhasyas) in &by_mantra {
         let status = if let Some(canon_entry) = canon.get(mantra_text) {
-            // mantra is in canon - check if any definition matches
-            let any_matches = definitions
+            // mantra is in canon - check if any bhasya matches
+            let any_matches = bhasyas
                 .iter()
-                .any(|d| normalize_commentary(&d.commentary) == normalize_commentary(&canon_entry.commentary));
+                .any(|b| normalize_commentary(&b.commentary) == normalize_commentary(&canon_entry.commentary));
 
             if any_matches {
                 MantraStatus::Accepted
@@ -524,7 +524,7 @@ pub fn compare_with_canon(repo: &Repository, canon: &Canon) -> Vec<MantraWithSta
 
         results.push(MantraWithStatus {
             mantra_text: mantra_text.clone(),
-            definitions: definitions.clone(),
+            bhasyas: bhasyas.clone(),
             status,
         });
     }
@@ -534,7 +534,7 @@ pub fn compare_with_canon(repo: &Repository, canon: &Canon) -> Vec<MantraWithSta
         if !by_mantra.contains_key(mantra_text) {
             results.push(MantraWithStatus {
                 mantra_text: mantra_text.clone(),
-                definitions: vec![],
+                bhasyas: vec![],
                 status: MantraStatus::OrphanedInCanon {
                     canon_commentary: canon_entry.commentary.clone(),
                 },

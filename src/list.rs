@@ -64,7 +64,7 @@ pub fn run(path: &Path, filter: Option<String>, pending_only: bool) -> Result<()
                     ListStatus::Orphaned
                 }
             };
-            (&m.mantra_text, status, m.definitions.len())
+            (&m.mantra_text, status, m.bhasyas.len())
         })
         .collect();
 
@@ -114,7 +114,7 @@ pub fn run(path: &Path, filter: Option<String>, pending_only: bool) -> Result<()
         };
 
         let suffix = if *count > 1 {
-            format!(" ({} definitions)", count)
+            format!(" ({} bhasyas)", count)
         } else if *count == 0 {
             " (canon only)".to_string()
         } else {

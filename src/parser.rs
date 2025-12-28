@@ -13,9 +13,9 @@ pub struct Mantra {
     pub is_template: bool,
 }
 
-/// A mantra definition with its commentary text (for snapshotting)
+/// A bhasya is a mantra with its commentary (the complete teaching unit)
 #[derive(Debug, Clone)]
-pub struct MantraDefinition {
+pub struct Bhasya {
     pub mantra_text: String,
     pub commentary: String,
     pub file: String,
@@ -65,7 +65,7 @@ pub struct KoshaConfig {
 #[derive(Debug, Default)]
 pub struct Repository {
     pub mantras: HashMap<String, Mantra>,
-    pub definitions: Vec<MantraDefinition>,
+    pub bhasyas: Vec<Bhasya>,
     pub references: Vec<Reference>,
     pub external_commentaries: Vec<ExternalCommentary>,
     pub kosha_config: KoshaConfig,
@@ -341,7 +341,7 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
 }
 
 fn parse_paragraph(para: &Paragraph, file_name: &str, repo: &mut Repository) {
-    // check if this is a quote block (mantra definitions require quote blocks)
+    // check if this is a quote block (bhasyas require quote blocks)
     let is_quote_block = para.text.trim_start().starts_with('>');
 
     if is_quote_block {
@@ -361,14 +361,14 @@ fn parse_paragraph(para: &Paragraph, file_name: &str, repo: &mut Repository) {
             parse_line_with_paragraph(unquoted_line, file_name, *line_num, &unquoted_para, repo, true);
         }
     } else {
-        // not a quote block - only parse for references, not definitions
+        // not a quote block - only parse for references, not bhasyas
         for (line_num, line) in &para.lines {
             parse_line_with_paragraph(line, file_name, *line_num, &para.text, repo, false);
         }
     }
 }
 
-fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, paragraph: &str, repo: &mut Repository, allow_definitions: bool) {
+fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, paragraph: &str, repo: &mut Repository, allow_bhasyas: bool) {
     let mut chars = line.chars().peekable();
     let mut in_backtick = false;
 
@@ -382,10 +382,10 @@ fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, parag
             continue;
         }
 
-        // **^mantra definition^** - bold canonical commentary syntax (required)
+        // **^mantra^** - bhasya syntax (mantra with commentary)
         // or **^mantra^**@kosha for external commentary
         // only allowed inside quote blocks (> ...)
-        if allow_definitions && c == '*' && chars.peek() == Some(&'*') {
+        if allow_bhasyas && c == '*' && chars.peek() == Some(&'*') {
             chars.next(); // consume second *
             if chars.peek() == Some(&'^') {
                 chars.next(); // consume ^
@@ -433,7 +433,7 @@ fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, parag
                         let commentary = extract_paragraph_commentary(paragraph, &mantra_text);
                         let has_explanation = !commentary.is_empty();
 
-                        repo.definitions.push(MantraDefinition {
+                        repo.bhasyas.push(Bhasya {
                             mantra_text: mantra_text.clone(),
                             commentary,
                             file: file_name.to_string(),
@@ -502,16 +502,16 @@ fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, parag
 }
 
 
-// Extract commentary from paragraph (entire paragraph minus mantra definitions)
+// Extract commentary from paragraph (entire paragraph minus mantras)
 fn extract_paragraph_commentary(paragraph: &str, mantra_text: &str) -> String {
-    // remove all mantra definitions from the paragraph
+    // remove all mantra markers from the paragraph
     let mut result = paragraph.to_string();
 
     // remove this specific mantra definition (**^mantra^** syntax only)
     let bold_pattern = format!("**^{}^**", mantra_text);
     result = result.replace(&bold_pattern, "");
 
-    // also remove any other mantra definitions in the paragraph
+    // also remove any other mantra markers in the paragraph
     // (a paragraph might define multiple mantras)
     let mut cleaned = String::new();
     let mut chars = result.chars().peekable();

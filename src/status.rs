@@ -77,22 +77,22 @@ pub fn run(path: &Path, verbose: bool) -> Result<(), String> {
             println!("\n{} pending:\n", new_mantras.len());
             for mantra in &new_mantras {
                 println!("  ^{}^", truncate(&mantra.mantra_text, 60));
-                if let Some(def) = mantra.definitions.first() {
+                if let Some(def) = mantra.bhasyas.first() {
                     println!("    {}:{}", def.file, def.line);
                     if !def.commentary.is_empty() {
                         println!("    \"{}\"", truncate(&def.commentary, 60));
                     }
                 }
-                if mantra.definitions.len() > 1 {
-                    println!("    ({} definitions total)", mantra.definitions.len());
+                if mantra.bhasyas.len() > 1 {
+                    println!("    ({} bhasyas total)", mantra.bhasyas.len());
                 }
                 println!();
             }
         } else {
-            // compact view: group by file (count all definitions, not just first)
+            // compact view: group by file (count all bhasyas, not just first)
             let mut by_file: HashMap<String, usize> = HashMap::new();
             for mantra in &new_mantras {
-                for def in &mantra.definitions {
+                for def in &mantra.bhasyas {
                     *by_file.entry(def.file.clone()).or_insert(0) += 1;
                 }
             }
@@ -100,7 +100,7 @@ pub fn run(path: &Path, verbose: bool) -> Result<(), String> {
             let mut files: Vec<_> = by_file.into_iter().collect();
             files.sort_by(|a, b| b.1.cmp(&a.1)); // sort by count descending
 
-            println!("\n{} pending ({} definitions):", new_mantras.len(),
+            println!("\n{} pending ({} bhasyas):", new_mantras.len(),
                 files.iter().map(|(_, c)| c).sum::<usize>());
             for (file, count) in &files {
                 println!("  {:>3}  {}", count, file);
@@ -116,17 +116,17 @@ pub fn run(path: &Path, verbose: bool) -> Result<(), String> {
                 println!("  ^{}^", truncate(&mantra.mantra_text, 60));
                 if let MantraStatus::Changed { canon_commentary } = &mantra.status {
                     println!("    canon: \"{}\"", truncate(canon_commentary, 50));
-                    if let Some(def) = mantra.definitions.first() {
+                    if let Some(def) = mantra.bhasyas.first() {
                         println!("    now:   \"{}\"", truncate(&def.commentary, 50));
                     }
                 }
                 println!();
             }
         } else {
-            // compact view: group by file (count all definitions, not just first)
+            // compact view: group by file (count all bhasyas, not just first)
             let mut by_file: HashMap<String, usize> = HashMap::new();
             for mantra in &changed_mantras {
-                for def in &mantra.definitions {
+                for def in &mantra.bhasyas {
                     *by_file.entry(def.file.clone()).or_insert(0) += 1;
                 }
             }
@@ -134,7 +134,7 @@ pub fn run(path: &Path, verbose: bool) -> Result<(), String> {
             let mut files: Vec<_> = by_file.into_iter().collect();
             files.sort_by(|a, b| b.1.cmp(&a.1));
 
-            println!("\n{} changed ({} definitions):", changed_mantras.len(),
+            println!("\n{} changed ({} bhasyas):", changed_mantras.len(),
                 files.iter().map(|(_, c)| c).sum::<usize>());
             for (file, count) in &files {
                 println!("  {:>3}  {}", count, file);

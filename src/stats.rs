@@ -7,8 +7,8 @@ pub fn run(path: &Path, buckets: usize) -> Result<(), String> {
     let ref_counts = repo.reference_counts();
 
     let total_mantras = repo.mantras.len();
+    let total_bhasyas = repo.bhasyas.len();
     let total_references = repo.references.len();
-    let total_explanations = repo.mantras.values().filter(|m| m.has_explanation).count();
     let unreferenced = repo.unreferenced_mantras().len();
 
     // load canon for stats
@@ -22,7 +22,7 @@ pub fn run(path: &Path, buckets: usize) -> Result<(), String> {
     println!("======================\n");
 
     println!("mantras:      {}", total_mantras);
-    println!("explanations: {}", total_explanations);
+    println!("bhasyas:      {}", total_bhasyas);
     println!("references:   {}", total_references);
     println!("unreferenced: {}", unreferenced);
 
