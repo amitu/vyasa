@@ -66,7 +66,6 @@
 > shastra using the `khandita: name` prefix:
 > - the shastra alias must be defined
 > - the bhasya must exist in that shastra (you cannot refute what doesn't exist)
-> - note if the bhasya is already tyakta in source (they already abandoned it)
 
 > **^khandita and uddhrit are mutually exclusive^** - if you khandita a bhasya
 > from a shastra, you cannot also uddhrit the same bhasya from that shastra.

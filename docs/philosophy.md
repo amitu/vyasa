@@ -37,3 +37,26 @@
 > **^the value is in the habit^** - what matters is developing the mental discipline of
 > careful, minimal, canonical knowledge representation. the tool is a reminder and
 > helper, but the real work happens in your mind as you formulate ideas precisely.
+
+## correcting knowledge
+
+> **^khandita does not create a counter-mantra^** - when you refute a bhasya from
+> another shastra, you don't create a new mantra explaining why. such a counter-mantra
+> would live forever in history, accumulating references.
+
+> **^khandita expects the source to tyakta^** - the purpose of khandita is to signal
+> disagreement and pressure the source shastra to reconsider. the expectation is that
+> they will eventually tyakta (abandon) the flawed bhasya.
+
+> **^tyakta cascades through dependents^** - when a source shastra tyaktas a bhasya,
+> everyone who quoted it (uddhrit) gets an error. they must either remove their quote
+> or convert it to khandita, propagating the correction through the knowledge graph.
+
+> **^bad branches collapse into ether^** - as tyakta cascades, entire branches of
+> flawed knowledge collapse. the traces remain only where needed: the original shastra
+> keeps the tyakta as a tombstone, and khanditas document the disagreement that led
+> to abandonment.
+
+> **^tombstones can eventually be removed^** - once enough time has passed and the
+> correction is widely known, even the tyakta tombstone can be removed from the
+> original shastra. or it can remain forever as a historical record of a failed idea.

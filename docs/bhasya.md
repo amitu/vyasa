@@ -62,9 +62,9 @@ khandita: physics
 > that the bhasya you're refuting actually exists. you cannot refute what doesn't
 > exist.
 
-> **^khandita notes when source already tyakta^** - if the source shastra has
-> already abandoned (tyakta) the bhasya, vyasa shows a note. you may choose to
-> recall your khandita or leave it with your own commentary explaining why.
+> **^khandita is valid even if source already tyakta^** - if the source shastra
+> has already abandoned (tyakta) the bhasya, your khandita remains valid. your
+> refutation may have contributed to their decision to abandon it.
 
 > **^khandita does not create a new mantra^** - refutations are responses to
 > external knowledge, not new definitions. they don't add to your mantra count.

@@ -104,7 +104,7 @@ pub fn run(path: &Path) -> Result<(), String> {
     }
 
     // check khandita (refuted) bhasyas
-    let (khandita_errors, khandita_notes) = check_khandita(&repo);
+    let khandita_errors = check_khandita(&repo);
     if !khandita_errors.is_empty() {
         has_errors = true;
         println!("found {} khandita errors:\n", khandita_errors.len());
@@ -112,12 +112,6 @@ pub fn run(path: &Path) -> Result<(), String> {
             println!("  {}\n", error);
         }
         error_counts.push(format!("{} khandita errors", khandita_errors.len()));
-    }
-    if !khandita_notes.is_empty() {
-        println!("found {} khandita notes:\n", khandita_notes.len());
-        for note in &khandita_notes {
-            println!("  {}\n", note);
-        }
     }
 
     // check for conflicting khandita/uddhrit (can't both refute and quote same bhasya)
@@ -329,10 +323,8 @@ fn check_shastra_quotes(repo: &Repository) -> Vec<String> {
 }
 
 /// Check khandita (refuted) bhasyas: verify they exist in source shastra
-/// Returns: (errors, notes) - notes inform when source has tyakta'd the bhasya
-fn check_khandita(repo: &Repository) -> (Vec<String>, Vec<String>) {
+fn check_khandita(repo: &Repository) -> Vec<String> {
     let mut errors = Vec::new();
-    let mut notes = Vec::new();
 
     // cache parsed external shastras
     let mut shastra_repos: HashMap<String, Option<Repository>> = HashMap::new();
@@ -397,19 +389,8 @@ fn check_khandita(repo: &Repository) -> (Vec<String>, Vec<String>) {
                     ));
                     continue;
                 }
-
-                // check if it's mula (non-tyakta) in source
-                let has_mula = external.mantras.contains_key(&bhasya.mantra_text);
-                if !has_mula {
-                    // only tyakta bhasya exists - note: they already abandoned it
-                    notes.push(format!(
-                        "{}:{}: khandita bhasya is already tyakta in '{}': ^{}^",
-                        bhasya.file,
-                        bhasya.line,
-                        shastra_name,
-                        truncate(&bhasya.mantra_text, 30)
-                    ));
-                }
+                // note: if source already tyakta'd it, that's fine - our khandita may have
+                // contributed to that decision, so we keep it without warning
             } else {
                 errors.push(format!(
                     "failed to parse shastra '{}' at {}",
@@ -419,7 +400,7 @@ fn check_khandita(repo: &Repository) -> (Vec<String>, Vec<String>) {
         }
     }
 
-    (errors, notes)
+    errors
 }
 
 /// Check that same bhasya is not both khandita and uddhrit from same shastra
