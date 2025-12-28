@@ -11,7 +11,7 @@
 > preview. this helps you locate and fix issues quickly.
 
 > **^vyasa check exits with non zero exit code if any rule is violated^** - check
-> validates multiple rules: bhasyas, anusrit validity, and kosha config.
+> validates multiple rules: bhasyas, anusrit validity, kosha config, and shastra quotes.
 > if any rule is violated, exit code 1 is returned - suitable for CI pipelines.
 
 > **^vyasa check reports undefined anusrits^** - every `_| anusrit |_` must match a defined
@@ -23,8 +23,7 @@
 
 > **^check accepts a path argument^** - by default, vyasa check scans the current
 > directory. pass a path to check a specific folder or file: `vyasa check ./docs`
-> or `vyasa check ./docs/syntax.vyasa`.
 
-> **^check validates canon entries exist in source files^** - every mantra in
-> canon.md must also be defined in a source file. canon is a digest of accepted
-> mantras, not a place to define new ones. orphaned canon entries are errors.
+> **^check validates shastra quotes^** - when you quote a bhasya from another shastra
+> using the `shastra: name` prefix, check verifies the mantra exists in that shastra.
+> if the quoted mantra is deprecated in the source, a warning is shown.

@@ -1,5 +1,5 @@
 > **^vyasa mantra shows details about a specific mantra^** - pass the mantra text to
-> see its canon status, all bhasyas (definitions with commentaries), and optionally its
+> see all its bhasyas (definitions with commentaries), and optionally its
 > anusrits throughout the repository.
 
 > **^mantra command requires the full mantra text^** - pass the complete mantra text
@@ -10,9 +10,6 @@
 
 > **^mantra --anusrits shows where mantra is used^** - use the -a or --anusrits
 > flag to also list every file and line where this mantra is used via anusrit.
-
-> **^mantra shows canon commentary when accepted^** - for mantras in canon, the
-> command displays the canonical commentary alongside source bhasyas.
 
 > **^mantra accepts a path argument^** - use --path to specify the repository:
 > `vyasa mantra --path=./docs "some mantra"`.

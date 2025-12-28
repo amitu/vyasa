@@ -10,6 +10,11 @@
 > different files with different commentaries. each occurrence is a separate
 > bhasya providing a different perspective or context.
 
-> **^canon stores accepted bhasyas^** - when you accept a mantra into canon, you're
-> accepting a specific bhasya (mantra + commentary pair). the commentary in canon
-> becomes the canonical explanation.
+> **^deprecated bhasyas use double angle bracket^** - when a bhasya is deprecated
+> (no longer recommended), prefix the quote block with `>>` instead of `>`.
+> deprecated mantras are still recognized but flagged by vyasa check.
+
+> **^shastra prefix quotes from external sources^** - to quote a bhasya from
+> another shastra (knowledge repository), add `shastra: name` on the line
+> immediately before the quote block. vyasa check verifies the quoted mantra
+> exists in the source shastra.

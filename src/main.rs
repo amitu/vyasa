@@ -2,13 +2,9 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 mod check;
-mod list;
 mod mantra;
 mod parser;
-mod snapshot;
 mod stats;
-mod status;
-mod study;
 
 #[derive(Parser)]
 #[command(name = "vyasa")]
@@ -26,15 +22,6 @@ enum Commands {
         #[arg(default_value = ".")]
         path: PathBuf,
     },
-    /// Compare mantras against canon.md
-    Status {
-        /// Path to the repository (defaults to current directory)
-        #[arg(default_value = ".")]
-        path: PathBuf,
-        /// Show detailed output with each mantra
-        #[arg(long, short)]
-        verbose: bool,
-    },
     /// Show details about a specific mantra
     Mantra {
         /// The mantra text to look up
@@ -42,17 +29,6 @@ enum Commands {
         /// Also show anusrits (where this mantra is used)
         #[arg(long, short)]
         anusrits: bool,
-        /// Path to the repository (defaults to current directory)
-        #[arg(long, default_value = ".")]
-        path: PathBuf,
-    },
-    /// List all mantras with their canon status
-    List {
-        /// Filter mantras containing this text
-        filter: Option<String>,
-        /// Only show pending (not in canon) mantras
-        #[arg(long, short)]
-        pending: bool,
         /// Path to the repository (defaults to current directory)
         #[arg(long, default_value = ".")]
         path: PathBuf,
@@ -66,17 +42,6 @@ enum Commands {
         #[arg(long, default_value = "10")]
         buckets: usize,
     },
-    /// Study mantras from configured koshas
-    Study {
-        /// Kosha alias to study (if omitted, shows stats for all koshas)
-        kosha: Option<String>,
-        /// Number of mantras to show (default 5)
-        #[arg(long, short, default_value = "5")]
-        count: usize,
-        /// Path to the repository (defaults to current directory)
-        #[arg(long, default_value = ".")]
-        path: PathBuf,
-    },
 }
 
 fn main() {
@@ -84,19 +49,12 @@ fn main() {
 
     let result = match cli.command {
         Commands::Check { path } => check::run(&path),
-        Commands::Status { path, verbose } => status::run(&path, verbose),
         Commands::Mantra {
             text,
             anusrits,
             path,
         } => mantra::run(&path, &text, anusrits),
-        Commands::List {
-            filter,
-            pending,
-            path,
-        } => list::run(&path, filter, pending),
         Commands::Stats { path, buckets } => stats::run(&path, buckets),
-        Commands::Study { kosha, count, path } => study::run(&path, kosha, count),
     };
 
     if let Err(e) = result {

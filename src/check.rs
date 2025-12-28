@@ -1,5 +1,5 @@
-use crate::parser::{find_repo_root, Repository};
-use crate::snapshot::{Canon, CanonSearchResult};
+use crate::parser::Repository;
+use std::collections::HashMap;
 use std::path::Path;
 
 // _| vyasa check exits with non zero exit code if any rule is violated |_
@@ -9,6 +9,7 @@ pub fn run(path: &Path) -> Result<(), String> {
     let unexplained = repo.unexplained_mantras();
 
     let mut has_errors = false;
+    let mut has_warnings = false;
     let mut error_counts = Vec::new();
 
     // check for unexplained mantras
@@ -41,7 +42,7 @@ pub fn run(path: &Path) -> Result<(), String> {
     }
 
     // _| kosha check verifies all kosha anusrits |_
-    let kosha_errors = check_kosha_anusrits(&repo, path);
+    let kosha_errors = check_kosha_anusrits(&repo);
     if !kosha_errors.is_empty() {
         has_errors = true;
         println!("found {} kosha anusrit errors:\n", kosha_errors.len());
@@ -51,56 +52,39 @@ pub fn run(path: &Path) -> Result<(), String> {
         error_counts.push(format!("{} kosha errors", kosha_errors.len()));
     }
 
-    // _| check validates canon entries exist in source files |_
-    let canon_errors = check_canon(&repo, path);
-    if !canon_errors.is_empty() {
+    // check shastra-quoted bhasyas
+    let (shastra_errors, shastra_warnings) = check_shastra_quotes(&repo);
+    if !shastra_errors.is_empty() {
         has_errors = true;
-        println!("found {} canon errors:\n", canon_errors.len());
-        for error in &canon_errors {
+        println!("found {} shastra quote errors:\n", shastra_errors.len());
+        for error in &shastra_errors {
             println!("  {}\n", error);
         }
-        error_counts.push(format!("{} canon errors", canon_errors.len()));
+        error_counts.push(format!("{} shastra errors", shastra_errors.len()));
+    }
+    if !shastra_warnings.is_empty() {
+        has_warnings = true;
+        println!("found {} shastra quote warnings:\n", shastra_warnings.len());
+        for warning in &shastra_warnings {
+            println!("  {}\n", warning);
+        }
     }
 
     if has_errors {
         Err(error_counts.join(", "))
     } else {
-        println!("all {} mantras validated successfully", repo.mantras.len());
+        if has_warnings {
+            println!("all {} mantras validated with warnings", repo.mantras.len());
+        } else {
+            println!("all {} mantras validated successfully", repo.mantras.len());
+        }
         Ok(())
     }
 }
 
 // _| kosha check verifies all kosha anusrits |_
-// _| when a mantra from other kosha is referred, that mantra must exist in canon of that kosha |_
-fn check_kosha_anusrits(repo: &Repository, repo_path: &Path) -> Vec<String> {
+fn check_kosha_anusrits(repo: &Repository) -> Vec<String> {
     let mut errors = Vec::new();
-
-    // load our own canon to check external entries
-    let repo_root = find_repo_root(repo_path);
-    let our_canon = repo_root
-        .as_ref()
-        .map(|r| Canon::find(r))
-        .and_then(|result| match result {
-            CanonSearchResult::Found(c) => Some(c),
-            _ => None,
-        });
-
-    // cache loaded kosha canons
-    let mut kosha_canons: std::collections::HashMap<String, Option<Canon>> =
-        std::collections::HashMap::new();
-
-    // helper to load a kosha's canon
-    let load_kosha_canon = |kosha_name: &str, repo: &Repository| -> Option<Canon> {
-        let resolved = repo.resolve_kosha_path(kosha_name)?;
-        let kosha_path = Path::new(&resolved);
-        if !kosha_path.exists() {
-            return None;
-        }
-        match Canon::find(kosha_path) {
-            CanonSearchResult::Found(c) => Some(c),
-            _ => None,
-        }
-    };
 
     // check each anusrit with a kosha
     for anusrit in &repo.anusrits {
@@ -140,67 +124,102 @@ fn check_kosha_anusrits(repo: &Repository, repo_path: &Path) -> Vec<String> {
                 ));
                 continue;
             }
+        }
+    }
 
-            // load the kosha's canon and verify mantra exists
-            let canon = kosha_canons
-                .entry(kosha_name.clone())
-                .or_insert_with(|| load_kosha_canon(kosha_name, repo));
+    errors
+}
 
-            if let Some(canon) = canon {
-                if canon.get(&anusrit.mantra_text).is_none() {
+/// Check shastra-quoted bhasyas: verify they exist in source and warn if deprecated
+fn check_shastra_quotes(repo: &Repository) -> (Vec<String>, Vec<String>) {
+    let mut errors = Vec::new();
+    let mut warnings = Vec::new();
+
+    // cache parsed external shastras
+    let mut shastra_repos: HashMap<String, Option<Repository>> = HashMap::new();
+
+    // find all bhasyas with shastra attribution
+    for bhasya in &repo.bhasyas {
+        if let Some(shastra_name) = &bhasya.shastra {
+            // resolve shastra name to path via kosha.json
+            let Some(shastra_path) = repo.kosha_config.aliases.get(shastra_name) else {
+                errors.push(format!(
+                    "{}:{}: undefined shastra '{}' for quoted ^{}^",
+                    bhasya.file,
+                    bhasya.line,
+                    shastra_name,
+                    truncate(&bhasya.mantra_text, 30)
+                ));
+                continue;
+            };
+
+            // check if it's a local folder path
+            let is_folder = shastra_path.starts_with('/')
+                || shastra_path.starts_with("./")
+                || shastra_path.starts_with("../");
+
+            if !is_folder {
+                errors.push(format!(
+                    "shastra '{}' refers to '{}' - only local folder paths are currently supported",
+                    shastra_name, shastra_path
+                ));
+                continue;
+            }
+
+            // check if resolved path exists
+            let path = Path::new(shastra_path);
+            if !path.exists() {
+                errors.push(format!(
+                    "shastra '{}' folder does not exist: {}",
+                    shastra_name, shastra_path
+                ));
+                continue;
+            }
+
+            // load the external shastra repo
+            let external_repo = shastra_repos
+                .entry(shastra_name.clone())
+                .or_insert_with(|| Repository::parse(path).ok());
+
+            if let Some(external) = external_repo {
+                // check if the mantra exists in the external shastra
+                let mantra_exists = external.mantras.contains_key(&bhasya.mantra_text);
+
+                if !mantra_exists {
                     errors.push(format!(
-                        "{}:{}: mantra not in {}'s canon: _{}_`@{}`",
-                        anusrit.file,
-                        anusrit.line,
-                        kosha_name,
-                        truncate(&anusrit.mantra_text, 30),
-                        kosha_name
+                        "{}:{}: mantra not found in shastra '{}': ^{}^",
+                        bhasya.file,
+                        bhasya.line,
+                        shastra_name,
+                        truncate(&bhasya.mantra_text, 30)
+                    ));
+                    continue;
+                }
+
+                // check if the mantra is deprecated in the external shastra
+                let is_deprecated_externally = external.bhasyas.iter().any(|b| {
+                    b.mantra_text == bhasya.mantra_text && b.is_deprecated
+                });
+
+                if is_deprecated_externally {
+                    warnings.push(format!(
+                        "{}:{}: quoted mantra is deprecated in '{}': ^{}^",
+                        bhasya.file,
+                        bhasya.line,
+                        shastra_name,
+                        truncate(&bhasya.mantra_text, 30)
                     ));
                 }
             } else {
                 errors.push(format!(
-                    "kosha '{}' has no canon.md",
-                    kosha_name
+                    "failed to parse shastra '{}' at {}",
+                    shastra_name, shastra_path
                 ));
             }
         }
     }
 
-    // check external entries in our canon
-    if let Some(canon) = our_canon {
-        for entry in canon.external_entries() {
-            if let Some(kosha_name) = &entry.external_kosha {
-                // check if alias is defined in kosha.json
-                if !repo.kosha_config.aliases.contains_key(kosha_name) {
-                    errors.push(format!(
-                        "canon anusrit references undefined kosha '{}' for ^{}^@{}",
-                        kosha_name,
-                        truncate(&entry.mantra, 30),
-                        kosha_name
-                    ));
-                    continue;
-                }
-
-                // load the kosha's canon and verify mantra exists
-                let external_canon = kosha_canons
-                    .entry(kosha_name.clone())
-                    .or_insert_with(|| load_kosha_canon(kosha_name, repo));
-
-                if let Some(external_canon) = external_canon {
-                    if external_canon.get(&entry.mantra).is_none() {
-                        errors.push(format!(
-                            "canon entry ^{}^@{} not found in {}'s canon",
-                            truncate(&entry.mantra, 30),
-                            kosha_name,
-                            kosha_name
-                        ));
-                    }
-                }
-            }
-        }
-    }
-
-    errors
+    (errors, warnings)
 }
 
 // _| vyasa check reports undefined anusrits |_
@@ -235,52 +254,4 @@ fn truncate(s: &str, max_len: usize) -> String {
     } else {
         first_line.to_string()
     }
-}
-
-// _| check validates canon entries exist in source files |_
-fn check_canon(repo: &Repository, repo_path: &Path) -> Vec<String> {
-    let mut errors = Vec::new();
-
-    let repo_root = match find_repo_root(repo_path) {
-        Some(r) => r,
-        None => return errors, // no repo root, nothing to check
-    };
-
-    let canon = match Canon::find(&repo_root) {
-        CanonSearchResult::Found(c) => c,
-        CanonSearchResult::NotFound => return errors, // no canon, nothing to check
-        CanonSearchResult::Multiple(paths) => {
-            errors.push(format!(
-                "multiple canon files found:\n    {}",
-                paths.join("\n    ")
-            ));
-            return errors;
-        }
-        CanonSearchResult::Invalid { path, errors: errs } => {
-            errors.push(format!(
-                "invalid canon at {}:\n    {}",
-                path,
-                errs.join("\n    ")
-            ));
-            return errors;
-        }
-    };
-
-    // check each canon entry exists in source files (not orphaned)
-    for (mantra_text, entry) in &canon.entries {
-        // skip external entries (those have @kosha suffix)
-        if entry.external_kosha.is_some() {
-            continue;
-        }
-
-        // check if this mantra exists in source definitions
-        if !repo.mantras.contains_key(mantra_text) {
-            errors.push(format!(
-                "canon entry not found in source files: ^{}^",
-                truncate(mantra_text, 50)
-            ));
-        }
-    }
-
-    errors
 }

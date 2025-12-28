@@ -13,21 +13,19 @@ pub struct Mantra {
 
 /// A bhasya is a mula mantra (मूल मंत्र) with its commentary (the complete teaching unit)
 /// Mula mantra uses **^mantra^** syntax inside quote blocks
+/// - `> **^mantra^**` - creates a bhasya
+/// - `>> **^mantra^**` - deprecates an existing bhasya
+/// - `shastra: name\n> **^mantra^**` - quotes a bhasya from another shastra
 #[derive(Debug, Clone)]
 pub struct Bhasya {
     pub mantra_text: String,
     pub commentary: String,
     pub file: String,
     pub line: usize,
-}
-
-// `^mantra^@kosha` provides commentary on external mantra
-#[derive(Debug, Clone)]
-pub struct ExternalCommentary {
-    pub mantra_text: String,
-    pub kosha: String,
-    pub file: String,
-    pub line: usize,
+    /// True if this bhasya is deprecated (uses >> instead of >)
+    pub is_deprecated: bool,
+    /// If set, this bhasya is quoting from another shastra
+    pub shastra: Option<String>,
 }
 
 /// An anusrit (अनुसृत) is a mantra reference using _| mantra |_ syntax
@@ -53,7 +51,6 @@ pub struct Repository {
     pub mantras: HashMap<String, Mantra>,
     pub bhasyas: Vec<Bhasya>,
     pub anusrits: Vec<Anusrit>,
-    pub external_commentaries: Vec<ExternalCommentary>,
     pub kosha_config: KoshaConfig,
 }
 
@@ -110,10 +107,6 @@ impl Repository {
         Ok(repo)
     }
 
-    pub fn resolve_kosha_path(&self, alias: &str) -> Option<String> {
-        self.kosha_config.aliases.get(alias).cloned()
-    }
-
     pub fn unreferenced_mantras(&self) -> Vec<&Mantra> {
         self.mantras
             .values()
@@ -167,6 +160,10 @@ struct Paragraph {
     text: String,
     start_line: usize,  // 1-indexed
     lines: Vec<(usize, String)>,  // (line_num, text)
+    /// True if this paragraph uses >> (deprecation) instead of >
+    is_deprecated: bool,
+    /// If set, this paragraph is attributed to a shastra (from preceding `shastra: name` line)
+    shastra: Option<String>,
 }
 
 fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
@@ -174,6 +171,9 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
     let mut current_lines: Vec<(usize, String)> = Vec::new();
     let mut start_line = 0;
     let mut in_quote_block = false;
+    let mut is_deprecated = false;
+    let mut current_shastra: Option<String> = None;
+    let mut pending_shastra: Option<String> = None;
 
     for (i, line) in lines.iter().enumerate() {
         let line_num = i + 1;
@@ -186,14 +186,33 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                     text,
                     start_line,
                     lines: std::mem::take(&mut current_lines),
+                    is_deprecated,
+                    shastra: current_shastra.take(),
                 });
                 in_quote_block = false;
+                is_deprecated = false;
             }
+            pending_shastra = None;
             continue;
         }
 
-        let is_quote_line = line.trim_start().starts_with('>');
+        let trimmed = line.trim_start();
+        // check for >> (deprecation) vs > (normal quote)
+        let is_deprecated_line = trimmed.starts_with(">>");
+        let is_quote_line = trimmed.starts_with('>');
         let is_empty = line.trim().is_empty();
+
+        // check for `shastra: name` pattern (must be alone on its line)
+        if !in_quote_block && !is_quote_line && !is_empty {
+            if let Some(shastra_name) = trimmed.strip_prefix("shastra:") {
+                let shastra_name = shastra_name.trim();
+                if !shastra_name.is_empty() {
+                    // this is a shastra attribution line - remember it for next quote block
+                    pending_shastra = Some(shastra_name.to_string());
+                    continue; // don't include this line in any paragraph
+                }
+            }
+        }
 
         if in_quote_block {
             // inside a quote block - continue until non-quote, non-empty line
@@ -209,8 +228,11 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                     text,
                     start_line,
                     lines: std::mem::take(&mut current_lines),
+                    is_deprecated,
+                    shastra: current_shastra.take(),
                 });
                 in_quote_block = false;
+                is_deprecated = false;
                 // start new paragraph with this line
                 start_line = line_num;
                 current_lines.push((line_num, line.to_string()));
@@ -225,8 +247,12 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                         text,
                         start_line,
                         lines: std::mem::take(&mut current_lines),
+                        is_deprecated: false,
+                        shastra: None,
                     });
                 }
+                // empty line also clears pending shastra
+                pending_shastra = None;
             } else if is_quote_line {
                 // starting a quote block
                 if !current_lines.is_empty() {
@@ -236,9 +262,13 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                         text,
                         start_line,
                         lines: std::mem::take(&mut current_lines),
+                        is_deprecated: false,
+                        shastra: None,
                     });
                 }
                 in_quote_block = true;
+                is_deprecated = is_deprecated_line;
+                current_shastra = pending_shastra.take();
                 start_line = line_num;
                 current_lines.push((line_num, line.to_string()));
             } else {
@@ -247,6 +277,8 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                     start_line = line_num;
                 }
                 current_lines.push((line_num, line.to_string()));
+                // regular line clears pending shastra
+                pending_shastra = None;
             }
         }
     }
@@ -258,6 +290,8 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
             text,
             start_line,
             lines: current_lines,
+            is_deprecated,
+            shastra: current_shastra,
         });
     }
 
@@ -269,30 +303,54 @@ fn parse_paragraph(para: &Paragraph, file_name: &str, repo: &mut Repository) {
     let is_quote_block = para.text.trim_start().starts_with('>');
 
     if is_quote_block {
-        // strip > prefix from paragraph text for commentary extraction
+        // strip > or >> prefix from paragraph text for commentary extraction
         let unquoted_para: String = para.text
             .lines()
-            .map(|l| l.trim_start().strip_prefix('>').unwrap_or(l).trim_start())
+            .map(|l| {
+                let trimmed = l.trim_start();
+                // strip >> or > prefix
+                let without_prefix = trimmed.strip_prefix(">>")
+                    .unwrap_or_else(|| trimmed.strip_prefix('>').unwrap_or(trimmed));
+                without_prefix.trim_start()
+            })
             .collect::<Vec<_>>()
             .join("\n");
 
-        // parse each line (strip > prefix) for mantras and references
+        // parse each line (strip > or >> prefix) for mantras and references
         for (line_num, line) in &para.lines {
-            let unquoted_line = line.trim_start()
-                .strip_prefix('>')
-                .unwrap_or(line)
+            let trimmed = line.trim_start();
+            let unquoted_line = trimmed.strip_prefix(">>")
+                .unwrap_or_else(|| trimmed.strip_prefix('>').unwrap_or(trimmed))
                 .trim_start();
-            parse_line_with_paragraph(unquoted_line, file_name, *line_num, &unquoted_para, repo, true);
+            parse_line_with_paragraph(
+                unquoted_line,
+                file_name,
+                *line_num,
+                &unquoted_para,
+                repo,
+                true,
+                para.is_deprecated,
+                para.shastra.clone(),
+            );
         }
     } else {
         // not a quote block - only parse for references, not bhasyas
         for (line_num, line) in &para.lines {
-            parse_line_with_paragraph(line, file_name, *line_num, &para.text, repo, false);
+            parse_line_with_paragraph(line, file_name, *line_num, &para.text, repo, false, false, None);
         }
     }
 }
 
-fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, paragraph: &str, repo: &mut Repository, allow_bhasyas: bool) {
+fn parse_line_with_paragraph(
+    line: &str,
+    file_name: &str,
+    line_num: usize,
+    paragraph: &str,
+    repo: &mut Repository,
+    allow_bhasyas: bool,
+    is_deprecated: bool,
+    shastra: Option<String>,
+) {
     let mut chars = line.chars().peekable();
     let mut in_backtick = false;
 
@@ -332,37 +390,20 @@ fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, parag
 
                 let mantra_text = mantra_text.trim().to_string();
                 if !mantra_text.is_empty() {
-                    // check for @kosha suffix (external commentary)
-                    if chars.peek() == Some(&'@') {
-                        chars.next(); // consume @
-                        let mut kosha_name = String::new();
-                        for c in chars.by_ref() {
-                            if c.is_alphanumeric() || c == '-' || c == '_' {
-                                kosha_name.push(c);
-                            } else {
-                                break;
-                            }
-                        }
-                        if !kosha_name.is_empty() {
-                            repo.external_commentaries.push(ExternalCommentary {
-                                mantra_text,
-                                kosha: kosha_name,
-                                file: file_name.to_string(),
-                                line: line_num,
-                            });
-                        }
-                    } else {
-                        // local mantra definition
-                        let commentary = extract_paragraph_commentary(paragraph, &mantra_text);
-                        let has_explanation = !commentary.is_empty();
+                    let commentary = extract_paragraph_commentary(paragraph, &mantra_text);
+                    let has_explanation = !commentary.is_empty();
 
-                        repo.bhasyas.push(Bhasya {
-                            mantra_text: mantra_text.clone(),
-                            commentary,
-                            file: file_name.to_string(),
-                            line: line_num,
-                        });
+                    repo.bhasyas.push(Bhasya {
+                        mantra_text: mantra_text.clone(),
+                        commentary,
+                        file: file_name.to_string(),
+                        line: line_num,
+                        is_deprecated,
+                        shastra: shastra.clone(),
+                    });
 
+                    // only add to mantras if this is not a quoted/external bhasya
+                    if shastra.is_none() {
                         repo.mantras.entry(mantra_text.clone()).or_insert(Mantra {
                             text: mantra_text,
                             file: file_name.to_string(),

@@ -1,40 +1,18 @@
-use crate::parser::{find_repo_root, Repository};
-use crate::snapshot::{compare_with_canon, Canon, CanonSearchResult, MantraStatus};
+use crate::parser::Repository;
 use std::path::Path;
 
 pub fn run(path: &Path, mantra_text: &str, show_references: bool) -> Result<(), String> {
     let repo = Repository::parse(path)?;
 
-    let repo_root = find_repo_root(path).ok_or("could not find repository root")?;
-
-    let canon = match Canon::find(&repo_root) {
-        CanonSearchResult::NotFound => Canon::default(),
-        CanonSearchResult::Found(canon) => canon,
-        CanonSearchResult::Multiple(paths) => {
-            return Err(format!(
-                "multiple canon.md files found:\n  {}\n\na kosha must have exactly one canon.md at the root",
-                paths.join("\n  ")
-            ));
-        }
-        CanonSearchResult::Invalid { path, errors } => {
-            return Err(format!(
-                "invalid canon.md at {}:\n  {}",
-                path,
-                errors.join("\n  ")
-            ));
-        }
-    };
-
-    let mantras = compare_with_canon(&repo, &canon);
-
     // find mantra matching this text
-    let found = mantras.iter().find(|m| m.mantra_text == mantra_text);
+    let found = repo.mantras.get(mantra_text);
 
     if found.is_none() {
         // try partial match
-        let partial: Vec<_> = mantras
-            .iter()
-            .filter(|m| m.mantra_text.contains(mantra_text))
+        let partial: Vec<_> = repo
+            .mantras
+            .keys()
+            .filter(|m| m.contains(mantra_text))
             .collect();
 
         if partial.is_empty() {
@@ -43,9 +21,9 @@ pub fn run(path: &Path, mantra_text: &str, show_references: bool) -> Result<(), 
 
         println!("no exact match, did you mean one of these?\n");
         for m in &partial {
-            println!("  ^{}^", truncate(&m.mantra_text, 60));
-            if let Some(def) = m.bhasyas.first() {
-                println!("    {}:{}", def.file, def.line);
+            println!("  ^{}^", truncate(m, 60));
+            if let Some(mantra) = repo.mantras.get(*m) {
+                println!("    {}:{}", mantra.file, mantra.line);
             }
         }
         return Ok(());
@@ -53,42 +31,30 @@ pub fn run(path: &Path, mantra_text: &str, show_references: bool) -> Result<(), 
 
     let mantra = found.unwrap();
 
-    println!("mantra: {}\n", mantra.mantra_text);
+    println!("mantra: {}\n", mantra_text);
 
-    match &mantra.status {
-        MantraStatus::Accepted => {
-            println!("status: in canon\n");
-            if let Some(canon_entry) = canon.get(&mantra.mantra_text) {
-                println!("canon commentary:");
-                println!("  \"{}\"\n", truncate(&canon_entry.commentary, 70));
-            }
-        }
-        MantraStatus::New => {
-            println!("status: not yet in canon\n");
-        }
-        MantraStatus::Changed { canon_commentary } => {
-            println!("status: commentary changed from canon\n");
-            println!("canon commentary:");
-            println!("  \"{}\"\n", truncate(canon_commentary, 70));
-        }
-        MantraStatus::OrphanedInCanon { canon_commentary } => {
-            println!("status: ERROR - only in canon, not in source files\n");
-            println!("canon commentary:");
-            println!("  \"{}\"\n", truncate(canon_commentary, 70));
-            println!("this mantra must be defined in a source file, not just canon.md\n");
-        }
-    }
+    // show bhasyas
+    let bhasyas: Vec<_> = repo
+        .bhasyas
+        .iter()
+        .filter(|b| b.mantra_text == mantra_text)
+        .collect();
 
-    if !mantra.bhasyas.is_empty() {
-        println!("bhasyas ({}):", mantra.bhasyas.len());
-        for def in &mantra.bhasyas {
-            println!("  {}:{}", def.file, def.line);
-            if !def.commentary.is_empty() {
-                println!("    \"{}\"", truncate(&def.commentary, 60));
+    if bhasyas.is_empty() {
+        println!("bhasyas: none (no explanations)\n");
+    } else {
+        println!("bhasyas ({}):", bhasyas.len());
+        for b in &bhasyas {
+            println!("  {}:{}", b.file, b.line);
+            if !b.commentary.is_empty() {
+                println!("    \"{}\"", truncate(&b.commentary, 60));
             }
             println!();
         }
     }
+
+    // show the mula definition location
+    println!("mula definition: {}:{}\n", mantra.file, mantra.line);
 
     if show_references {
         // find all anusrits to this mantra
