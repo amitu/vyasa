@@ -32,7 +32,7 @@ pub fn run(path: &Path) -> Result<(), String> {
     }
 
     // _| vyasa check reports undefined anusrits |_
-    let undefined_refs = check_undefined_anusrits(&repo);
+    let (undefined_refs, ambiguous_refs) = check_undefined_anusrits(&repo);
     if !undefined_refs.is_empty() {
         has_errors = true;
         println!(
@@ -44,6 +44,21 @@ pub fn run(path: &Path) -> Result<(), String> {
             println!("    anusrit: {}\n", truncate(text, 60));
         }
         error_counts.push(format!("{} undefined anusrits", undefined_refs.len()));
+    }
+
+    if !ambiguous_refs.is_empty() {
+        has_errors = true;
+        println!(
+            "found {} ambiguous anusrits:\n",
+            ambiguous_refs.len()
+        );
+        for (file, line, text, shastras) in &ambiguous_refs {
+            println!("  {}:{}", file, line);
+            println!("    ^{}^", truncate(text, 60));
+            println!("    found in: {}", shastras.join(", "));
+            println!("    use @shastra to disambiguate\n");
+        }
+        error_counts.push(format!("{} ambiguous anusrits", ambiguous_refs.len()));
     }
 
     // check external shastra anusrits
@@ -256,26 +271,74 @@ fn check_shastra_quotes(repo: &Repository) -> (Vec<String>, Vec<String>) {
 }
 
 // _| vyasa check reports undefined anusrits |_
-fn check_undefined_anusrits(repo: &Repository) -> Vec<(String, usize, String)> {
+fn check_undefined_anusrits(repo: &Repository) -> (Vec<(String, usize, String)>, Vec<(String, usize, String, Vec<String>)>) {
     let mut undefined = Vec::new();
+    let mut ambiguous = Vec::new();
+
+    // cache parsed external shastras
+    let mut shastra_repos: HashMap<String, Option<Repository>> = HashMap::new();
 
     for anusrit in &repo.anusrits {
-        // skip external shastra anusrits (checked separately)
+        // explicit @shastra anusrits are checked separately
         if anusrit.shastra.is_some() {
             continue;
         }
 
-        // check if anusrit matches a defined mantra
-        if !repo.mantras.contains_key(&anusrit.mantra_text) {
+        // first check current shastra
+        if repo.mantras.contains_key(&anusrit.mantra_text) {
+            continue;
+        }
+
+        // not in current shastra - check all external shastras
+        let mut found_in: Vec<String> = Vec::new();
+
+        for (shastra_name, shastra_path) in &repo.shastra_config.aliases {
+            // only check local folder paths
+            let is_folder = shastra_path.starts_with('/')
+                || shastra_path.starts_with("./")
+                || shastra_path.starts_with("../");
+
+            if !is_folder {
+                continue;
+            }
+
+            let path = Path::new(shastra_path);
+            if !path.exists() {
+                continue;
+            }
+
+            // load external shastra
+            let external_repo = shastra_repos
+                .entry(shastra_name.clone())
+                .or_insert_with(|| Repository::parse(path).ok());
+
+            if let Some(external) = external_repo {
+                if external.mantras.contains_key(&anusrit.mantra_text) {
+                    found_in.push(shastra_name.clone());
+                }
+            }
+        }
+
+        if found_in.is_empty() {
+            // not found anywhere
             undefined.push((
                 anusrit.file.clone(),
                 anusrit.line,
                 anusrit.mantra_text.clone(),
             ));
+        } else if found_in.len() > 1 {
+            // found in multiple shastras - ambiguous
+            ambiguous.push((
+                anusrit.file.clone(),
+                anusrit.line,
+                anusrit.mantra_text.clone(),
+                found_in,
+            ));
         }
+        // found in exactly one external shastra - valid, no error
     }
 
-    undefined
+    (undefined, ambiguous)
 }
 
 fn truncate(s: &str, max_len: usize) -> String {

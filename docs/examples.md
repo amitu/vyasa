@@ -9,7 +9,8 @@ shastra: physics
 
 ## Using quoted mantra via anusrit
 
-When implementing calculations, we rely on _| energy is conserved |_@physics.
+When implementing calculations, we rely on _| energy is conserved |_ (no @physics needed
+since it's unambiguous - only defined in physics shastra).
 
 ## Quoting a tyakta bhasya (should warn)
 

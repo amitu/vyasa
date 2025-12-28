@@ -36,12 +36,17 @@
 
 ### anusrits from other shastras
 
-> **^shastra anusrits use @suffix^** - to use a mantra from another shastra via
-> anusrit, use `_| mantra text |_@shastra-name` after the closing `|_`.
+> **^anusrits auto-resolve across shastras^** - when you reference a mantra with
+> `_| mantra |_`, vyasa first checks the current shastra, then all external shastras.
+> if found in exactly one place, it resolves automatically.
 
-```markdown
-the physics team established that _| energy is conserved |_@physics
-```
+> **^ambiguous anusrits require @shastra^** - if the same mantra text exists in
+> multiple shastras, vyasa check fails and asks you to disambiguate with
+> `_| mantra |_@shastra-name`.
+> ```markdown
+> _| energy is conserved |_           # auto-resolves if unique
+> _| energy is conserved |_@physics   # explicit when ambiguous
+> ```
 
 ### quoting bhasyas (uddhrit)
 
