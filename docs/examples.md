@@ -12,8 +12,14 @@ shastra: physics
 When implementing calculations, we rely on _| energy is conserved |_ (no @physics needed
 since it's unambiguous - only defined in physics shastra).
 
-## Quoting a tyakta bhasya (should warn)
+## Quoting a tyakta bhasya (error)
 
+Quoting a tyakta bhasya results in an error:
+
+```markdown
 shastra: physics
 > **^ether is the medium for light^** - this bhasya is tyakta in physics
+```
+
+This fails because `ether is the medium for light` is tyakta in the physics shastra.
 

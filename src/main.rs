@@ -42,7 +42,7 @@ fn run_check_and_stats(path: &PathBuf) -> Result<(), String> {
 
     // always show stats after check output
     println!();
-    stats::run(path, 10)?;
+    stats::run(path)?;
 
     // return check result (may be error)
     check_result

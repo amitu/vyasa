@@ -2,7 +2,7 @@ use crate::parser::Repository;
 use std::collections::HashMap;
 use std::path::Path;
 
-// _| vyasa check exits with non zero exit code if any rule is violated |_
+// _| vyasa exits with non zero exit code if any rule is violated |_
 pub fn run(path: &Path) -> Result<(), String> {
     let repo = Repository::parse(path)?;
 
@@ -14,7 +14,6 @@ pub fn run(path: &Path) -> Result<(), String> {
     let unexplained = repo.unexplained_mantras();
 
     let mut has_errors = false;
-    let mut has_warnings = false;
     let mut error_counts = Vec::new();
 
     // check for unexplained mantras
@@ -52,7 +51,7 @@ pub fn run(path: &Path) -> Result<(), String> {
         error_counts.push(format!("{} duplicate bhasyas", duplicate_bhasyas.len()));
     }
 
-    // _| vyasa check reports undefined anusrits |_
+    // _| vyasa reports undefined anusrits |_
     let (undefined_refs, ambiguous_refs) = check_undefined_anusrits(&repo);
     if !undefined_refs.is_empty() {
         has_errors = true;
@@ -94,7 +93,7 @@ pub fn run(path: &Path) -> Result<(), String> {
     }
 
     // check shastra-quoted bhasyas
-    let (shastra_errors, shastra_warnings) = check_shastra_quotes(&repo);
+    let shastra_errors = check_shastra_quotes(&repo);
     if !shastra_errors.is_empty() {
         has_errors = true;
         println!("found {} shastra quote errors:\n", shastra_errors.len());
@@ -103,22 +102,10 @@ pub fn run(path: &Path) -> Result<(), String> {
         }
         error_counts.push(format!("{} shastra quote errors", shastra_errors.len()));
     }
-    if !shastra_warnings.is_empty() {
-        has_warnings = true;
-        println!("found {} shastra quote warnings:\n", shastra_warnings.len());
-        for warning in &shastra_warnings {
-            println!("  {}\n", warning);
-        }
-    }
 
     if has_errors {
         Err(error_counts.join(", "))
     } else {
-        if has_warnings {
-            println!("all {} mantras validated with warnings", repo.mantras.len());
-        } else {
-            println!("all {} mantras validated successfully", repo.mantras.len());
-        }
         Ok(())
     }
 }
@@ -198,10 +185,9 @@ fn check_shastra_anusrits(repo: &Repository) -> Vec<String> {
     errors
 }
 
-/// Check shastra-quoted bhasyas: verify they exist in source and warn if tyakta
-fn check_shastra_quotes(repo: &Repository) -> (Vec<String>, Vec<String>) {
+/// Check shastra-quoted bhasyas: verify they exist in source, error if tyakta
+fn check_shastra_quotes(repo: &Repository) -> Vec<String> {
     let mut errors = Vec::new();
-    let mut warnings = Vec::new();
 
     // cache parsed external shastras
     let mut shastra_repos: HashMap<String, Option<Repository>> = HashMap::new();
@@ -293,8 +279,8 @@ fn check_shastra_quotes(repo: &Repository) -> (Vec<String>, Vec<String>) {
                 }
 
                 if !has_mula {
-                    // only tyakta bhasya exists - warning
-                    warnings.push(format!(
+                    // only tyakta bhasya exists - error
+                    errors.push(format!(
                         "{}:{}: quoted tyakta from '{}': ^{}^",
                         bhasya.file,
                         bhasya.line,
@@ -311,7 +297,7 @@ fn check_shastra_quotes(repo: &Repository) -> (Vec<String>, Vec<String>) {
         }
     }
 
-    (errors, warnings)
+    errors
 }
 
 /// Check for duplicate bhasyas - same mantra + commentary must be unique
@@ -347,7 +333,7 @@ fn check_duplicate_bhasyas(repo: &Repository) -> Vec<(String, String, Vec<(Strin
         .collect()
 }
 
-// _| vyasa check reports undefined anusrits |_
+// _| vyasa reports undefined anusrits |_
 fn check_undefined_anusrits(repo: &Repository) -> (Vec<(String, usize, String)>, Vec<(String, usize, String, Vec<String>)>) {
     let mut undefined = Vec::new();
     let mut ambiguous = Vec::new();

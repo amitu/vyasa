@@ -38,9 +38,9 @@ shastra: physics
 > from Einstein's special relativity.
 ```
 
-> **^uddhrit requires the mantra to exist in source shastra^** - vyasa check
+> **^uddhrit requires the mantra to exist in source shastra^** - vyasa
 > verifies that quoted mantras actually exist in the referenced shastra.
-> if the bhasya is tyakta in source, you'll get a warning.
+> if the bhasya is tyakta in source, you'll get an error.
 
 > **^uddhrit does not create a new mantra^** - quoted bhasyas are references,
 > not definitions. they don't add to your mantra count.
@@ -55,8 +55,8 @@ shastra: physics
 >> we now prefer the new method described elsewhere.
 ```
 
-> **^tyakta warns consumers of the bhasya^** - when someone quotes (uddhrit)
-> a tyakta bhasya from your shastra, vyasa check will warn them that
+> **^tyakta blocks consumers of the bhasya^** - when someone quotes (uddhrit)
+> a tyakta bhasya from your shastra, vyasa will error because
 > they're referencing abandoned knowledge.
 
 > **^tyakta-only mantras are invalid for anusrit^** - if a mantra only appears in

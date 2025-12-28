@@ -66,12 +66,10 @@ shastra: physics
 
 ## validation
 
-> **^shastra check verifies all shastra references^** - the check command validates:
+> **^vyasa verifies all shastra references^** - validation includes:
 > - all @shastra-name anusrits have matching aliases in shastra.json
 > - all shastra paths exist
-> - all uddhrit mantras exist in their source shastra
-> - warnings if quoted bhasyas are tyakta in source
+> - all uddhrit mantras exist in their source shastra in mula form
 
-> **^quoting tyakta triggers warnings not errors^** - if you quote a bhasya
-> that is tyakta in the source shastra, vyasa check warns you but doesn't
-> fail. this gives you time to update your references.
+> **^quoting tyakta is an error^** - if you quote a bhasya that is tyakta
+> in the source shastra, vyasa fails. you cannot reference abandoned knowledge.

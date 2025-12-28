@@ -25,7 +25,7 @@ as we know, _| mantras should use inline syntax not block because they are meant
 ```
 
 > **^anusrits must match defined mantras^** - every anusrit must correspond to a
-> mula mantra definition. _| vyasa check reports undefined anusrits |_.
+> mula mantra definition. _| vyasa reports undefined anusrits |_.
 
 ## shastra reference syntax
 

@@ -116,26 +116,11 @@ impl Repository {
         Ok(repo)
     }
 
-    pub fn unreferenced_mantras(&self) -> Vec<&Mantra> {
-        self.mantras
-            .values()
-            .filter(|m| !self.anusrits.iter().any(|r| r.mantra_text == m.text))
-            .collect()
-    }
-
     pub fn unexplained_mantras(&self) -> Vec<&Mantra> {
         self.mantras
             .values()
             .filter(|m| !m.has_explanation)
             .collect()
-    }
-
-    pub fn anusrit_counts(&self) -> HashMap<String, usize> {
-        let mut counts: HashMap<String, usize> = HashMap::new();
-        for anusrit in &self.anusrits {
-            *counts.entry(anusrit.mantra_text.clone()).or_insert(0) += 1;
-        }
-        counts
     }
 }
 
@@ -167,7 +152,6 @@ fn parse_file(content: &str, file_name: &str, repo: &mut Repository) {
 #[derive(Debug)]
 struct Paragraph {
     text: String,
-    start_line: usize,  // 1-indexed
     lines: Vec<(usize, String)>,  // (line_num, text)
     /// True if this paragraph uses >> (deprecation) instead of >
     is_deprecated: bool,
@@ -207,7 +191,6 @@ fn is_comment_only_line(line: &str) -> bool {
 fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
     let mut paragraphs = Vec::new();
     let mut current_lines: Vec<(usize, String)> = Vec::new();
-    let mut start_line = 0;
     let mut in_quote_block = false;
     let mut is_deprecated = false;
     let mut current_shastra: Option<String> = None;
@@ -223,7 +206,6 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                 let text = current_lines.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
                 paragraphs.push(Paragraph {
                     text,
-                    start_line,
                     lines: std::mem::take(&mut current_lines),
                     is_deprecated,
                     shastra: current_shastra.take(),
@@ -287,7 +269,6 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                 let text = current_lines.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
                 paragraphs.push(Paragraph {
                     text,
-                    start_line,
                     lines: std::mem::take(&mut current_lines),
                     is_deprecated,
                     shastra: current_shastra.take(),
@@ -299,7 +280,6 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                     is_deprecated = is_deprecated_line;
                     current_shastra = pending_shastra.take();
                     current_comment_prefix = comment_prefix.map(|s| s.to_string());
-                    start_line = line_num;
                     current_lines.push((line_num, line.to_string()));
                 } else {
                     in_quote_block = false;
@@ -307,7 +287,6 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                     current_comment_prefix = None;
                     // start new paragraph with this line if not empty
                     if !is_empty {
-                        start_line = line_num;
                         current_lines.push((line_num, line.to_string()));
                     }
                 }
@@ -320,7 +299,6 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                     let text = current_lines.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
                     paragraphs.push(Paragraph {
                         text,
-                        start_line,
                         lines: std::mem::take(&mut current_lines),
                         is_deprecated: false,
                         shastra: None,
@@ -336,7 +314,6 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                     let text = current_lines.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
                     paragraphs.push(Paragraph {
                         text,
-                        start_line,
                         lines: std::mem::take(&mut current_lines),
                         is_deprecated: false,
                         shastra: None,
@@ -346,13 +323,9 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                 is_deprecated = is_deprecated_line;
                 current_shastra = pending_shastra.take();
                 current_comment_prefix = comment_prefix.map(|s| s.to_string());
-                start_line = line_num;
                 current_lines.push((line_num, line.to_string()));
             } else {
                 // regular line
-                if current_lines.is_empty() {
-                    start_line = line_num;
-                }
                 current_lines.push((line_num, line.to_string()));
                 // regular line clears pending shastra
                 pending_shastra = None;
@@ -366,7 +339,6 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
         let text = current_lines.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
         paragraphs.push(Paragraph {
             text,
-            start_line,
             lines: current_lines,
             is_deprecated,
             shastra: current_shastra,
