@@ -38,6 +38,13 @@ pub struct Anusrit {
     pub shastra: Option<String>,
 }
 
+/// Repository configuration loaded from .vyasa/config.json
+#[derive(Debug, Default)]
+pub struct Config {
+    /// Name of this shastra (used for self-references)
+    pub name: Option<String>,
+}
+
 /// Shastra configuration loaded from .vyasa/shastra.json
 /// Maps alias names to paths (local folders)
 #[derive(Debug, Default)]
@@ -51,6 +58,7 @@ pub struct Repository {
     pub mantras: HashMap<String, Mantra>,
     pub bhasyas: Vec<Bhasya>,
     pub anusrits: Vec<Anusrit>,
+    pub config: Config,
     pub shastra_config: ShastraConfig,
 }
 
@@ -59,9 +67,10 @@ impl Repository {
     pub fn parse(path: &Path) -> Result<Self, String> {
         let mut repo = Repository::default();
 
-        // find repository root and load shastra config
+        // find repository root and load config
         let repo_root = find_repo_root(path);
         if let Some(root) = &repo_root {
+            repo.config = load_config(root);
             repo.shastra_config = load_shastra_config(root);
         }
 
@@ -497,8 +506,8 @@ fn parse_line_with_paragraph(
                         shastra: shastra.clone(),
                     });
 
-                    // only add to mantras if this is not a quoted/external bhasya
-                    if shastra.is_none() {
+                    // only add to mantras if this is a mula bhasya (not quoted, not tyakta)
+                    if shastra.is_none() && !is_deprecated {
                         repo.mantras.entry(mantra_text.clone()).or_insert(Mantra {
                             text: mantra_text,
                             file: file_name.to_string(),
@@ -666,6 +675,18 @@ pub fn find_repo_root(path: &Path) -> Option<std::path::PathBuf> {
     }
 
     None
+}
+
+fn load_config(repo_root: &Path) -> Config {
+    let config_file = repo_root.join(".vyasa/config.json");
+    if let Ok(content) = fs::read_to_string(&config_file) {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+            return Config {
+                name: json.get("name").and_then(|v| v.as_str()).map(|s| s.to_string()),
+            };
+        }
+    }
+    Config::default()
 }
 
 fn load_shastra_config(repo_root: &Path) -> ShastraConfig {

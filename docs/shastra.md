@@ -7,6 +7,14 @@
 
 ## configuration
 
+> **^every shastra must have a name^** - the `.vyasa/config.json` file must contain
+> a `name` field identifying this shastra. vyasa check fails without it.
+> ```json
+> {
+>   "name": "my-shastra"
+> }
+> ```
+
 > **^.vyasa/shastra.json contains shastra configuration^** - the shastra config file
 > lives at `.vyasa/shastra.json` in your repository root. it defines aliases for
 > external shastras you want to reference.

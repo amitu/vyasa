@@ -6,6 +6,11 @@ use std::path::Path;
 pub fn run(path: &Path) -> Result<(), String> {
     let repo = Repository::parse(path)?;
 
+    // require shastra name in .vyasa/config.json
+    if repo.config.name.is_none() {
+        return Err("missing 'name' in .vyasa/config.json - every shastra must have a name".to_string());
+    }
+
     let unexplained = repo.unexplained_mantras();
 
     let mut has_errors = false;
@@ -82,9 +87,12 @@ pub fn run(path: &Path) -> Result<(), String> {
     }
 }
 
-/// Check external shastra anusrits have valid aliases and paths
+/// Check external shastra anusrits: verify alias, path, and mantra exists in mula form
 fn check_shastra_anusrits(repo: &Repository) -> Vec<String> {
     let mut errors = Vec::new();
+
+    // cache parsed external shastras
+    let mut shastra_repos: HashMap<String, Option<Repository>> = HashMap::new();
 
     // check each anusrit with a shastra reference
     for anusrit in &repo.anusrits {
@@ -92,11 +100,10 @@ fn check_shastra_anusrits(repo: &Repository) -> Vec<String> {
             // check if alias is defined in shastra.json
             let Some(shastra_path) = repo.shastra_config.aliases.get(shastra_name) else {
                 errors.push(format!(
-                    "{}:{}: undefined shastra '{}' in _{}_`@{}`",
+                    "{}:{}: undefined shastra '{}' in anusrit @{}",
                     anusrit.file,
                     anusrit.line,
                     shastra_name,
-                    truncate(&anusrit.mantra_text, 30),
                     shastra_name
                 ));
                 continue;
@@ -123,6 +130,31 @@ fn check_shastra_anusrits(repo: &Repository) -> Vec<String> {
                     shastra_name, shastra_path
                 ));
                 continue;
+            }
+
+            // load the external shastra repo
+            let external_repo = shastra_repos
+                .entry(shastra_name.clone())
+                .or_insert_with(|| Repository::parse(path).ok());
+
+            if let Some(external) = external_repo {
+                // check if the mantra exists in mula form (not tyakta-only)
+                let mantra_exists = external.mantras.contains_key(&anusrit.mantra_text);
+
+                if !mantra_exists {
+                    errors.push(format!(
+                        "{}:{}: mantra not found in shastra '{}': ^{}^",
+                        anusrit.file,
+                        anusrit.line,
+                        shastra_name,
+                        truncate(&anusrit.mantra_text, 30)
+                    ));
+                }
+            } else {
+                errors.push(format!(
+                    "failed to parse shastra '{}' at {}",
+                    shastra_name, shastra_path
+                ));
             }
         }
     }
@@ -182,10 +214,15 @@ fn check_shastra_quotes(repo: &Repository) -> (Vec<String>, Vec<String>) {
                 .or_insert_with(|| Repository::parse(path).ok());
 
             if let Some(external) = external_repo {
-                // check if the mantra exists in the external shastra
-                let mantra_exists = external.mantras.contains_key(&bhasya.mantra_text);
+                // check if mantra exists in mula form (non-tyakta bhasya)
+                let has_mula = external.mantras.contains_key(&bhasya.mantra_text);
+                // check if any bhasya (mula or tyakta) exists
+                let has_any_bhasya = external.bhasyas.iter().any(|b| {
+                    b.mantra_text == bhasya.mantra_text
+                });
 
-                if !mantra_exists {
+                if !has_any_bhasya {
+                    // no bhasya at all - error
                     errors.push(format!(
                         "{}:{}: mantra not found in shastra '{}': ^{}^",
                         bhasya.file,
@@ -196,12 +233,8 @@ fn check_shastra_quotes(repo: &Repository) -> (Vec<String>, Vec<String>) {
                     continue;
                 }
 
-                // check if the bhasya is tyakta in the external shastra
-                let is_tyakta_externally = external.bhasyas.iter().any(|b| {
-                    b.mantra_text == bhasya.mantra_text && b.is_deprecated
-                });
-
-                if is_tyakta_externally {
+                if !has_mula {
+                    // only tyakta bhasya exists - warning
                     warnings.push(format!(
                         "{}:{}: quoted tyakta from '{}': ^{}^",
                         bhasya.file,
