@@ -14,8 +14,9 @@ pub struct Mantra {
 /// A bhasya is a mula mantra (मूल मंत्र) with its commentary (the complete teaching unit)
 /// Mula mantra uses **^mantra^** syntax inside quote blocks
 /// - `> **^mantra^**` - creates a bhasya
-/// - `>> **^mantra^**` - deprecates an existing bhasya
-/// - `shastra: name\n> **^mantra^**` - quotes a bhasya from another shastra
+/// - `>> **^mantra^**` - deprecates an existing bhasya (tyakta)
+/// - `shastra: name\n> **^mantra^**` - quotes a bhasya from another shastra (uddhrit)
+/// - `khandita: name\n> **^mantra^**` - refutes a bhasya from another shastra
 #[derive(Debug, Clone)]
 pub struct Bhasya {
     pub mantra_text: String,
@@ -24,8 +25,10 @@ pub struct Bhasya {
     pub line: usize,
     /// True if this bhasya is deprecated (uses >> instead of >)
     pub is_deprecated: bool,
-    /// If set, this bhasya is quoting from another shastra
+    /// If set, this bhasya is quoting from another shastra (uddhrit)
     pub shastra: Option<String>,
+    /// If set, this bhasya is refuting a bhasya from another shastra (khandita)
+    pub khandita: Option<String>,
 }
 
 /// An anusrit (अनुसृत) is a mantra reference using `_| mantra text |_` syntax
@@ -157,6 +160,8 @@ struct Paragraph {
     is_deprecated: bool,
     /// If set, this paragraph is attributed to a shastra (from preceding `shastra: name` line)
     shastra: Option<String>,
+    /// If set, this paragraph refutes a bhasya from another shastra (from preceding `khandita: name` line)
+    khandita: Option<String>,
 }
 
 /// Strip common comment prefixes from a line, returning the content after the prefix
@@ -195,6 +200,8 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
     let mut is_deprecated = false;
     let mut current_shastra: Option<String> = None;
     let mut pending_shastra: Option<String> = None;
+    let mut current_khandita: Option<String> = None;
+    let mut pending_khandita: Option<String> = None;
     let mut current_comment_prefix: Option<String> = None;
 
     for (i, line) in lines.iter().enumerate() {
@@ -209,12 +216,14 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                     lines: std::mem::take(&mut current_lines),
                     is_deprecated,
                     shastra: current_shastra.take(),
+                    khandita: current_khandita.take(),
                 });
                 in_quote_block = false;
                 is_deprecated = false;
                 current_comment_prefix = None;
             }
             pending_shastra = None;
+            pending_khandita = None;
             continue;
         }
 
@@ -230,13 +239,24 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
         let is_quote_line = content.starts_with('>');
         let is_empty = line.trim().is_empty() || is_comment_only_line(line);
 
-        // check for `shastra: name` pattern (must be alone on its line)
+        // check for `shastra: name` or `khandita: name` pattern (must be alone on its line)
         if !in_quote_block && !is_quote_line && !is_empty {
             if let Some(shastra_name) = content.strip_prefix("shastra:") {
                 let shastra_name = shastra_name.trim();
                 if !shastra_name.is_empty() {
                     // this is a shastra attribution line - remember it for next quote block
                     pending_shastra = Some(shastra_name.to_string());
+                    pending_khandita = None; // shastra and khandita are mutually exclusive
+                    current_comment_prefix = comment_prefix.map(|s| s.to_string());
+                    continue; // don't include this line in any paragraph
+                }
+            }
+            if let Some(khandita_name) = content.strip_prefix("khandita:") {
+                let khandita_name = khandita_name.trim();
+                if !khandita_name.is_empty() {
+                    // this is a khandita (refutation) line - remember it for next quote block
+                    pending_khandita = Some(khandita_name.to_string());
+                    pending_shastra = None; // shastra and khandita are mutually exclusive
                     current_comment_prefix = comment_prefix.map(|s| s.to_string());
                     continue; // don't include this line in any paragraph
                 }
@@ -272,6 +292,7 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                     lines: std::mem::take(&mut current_lines),
                     is_deprecated,
                     shastra: current_shastra.take(),
+                    khandita: current_khandita.take(),
                 });
 
                 // if this line is also a quote line (e.g., deprecation changed), start a new quote block
@@ -279,6 +300,7 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                     in_quote_block = true;
                     is_deprecated = is_deprecated_line;
                     current_shastra = pending_shastra.take();
+                    current_khandita = pending_khandita.take();
                     current_comment_prefix = comment_prefix.map(|s| s.to_string());
                     current_lines.push((line_num, line.to_string()));
                 } else {
@@ -302,10 +324,12 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                         lines: std::mem::take(&mut current_lines),
                         is_deprecated: false,
                         shastra: None,
+                        khandita: None,
                     });
                 }
-                // empty line also clears pending shastra
+                // empty line also clears pending shastra/khandita
                 pending_shastra = None;
+                pending_khandita = None;
                 current_comment_prefix = None;
             } else if is_quote_line {
                 // starting a quote block
@@ -317,18 +341,21 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                         lines: std::mem::take(&mut current_lines),
                         is_deprecated: false,
                         shastra: None,
+                        khandita: None,
                     });
                 }
                 in_quote_block = true;
                 is_deprecated = is_deprecated_line;
                 current_shastra = pending_shastra.take();
+                current_khandita = pending_khandita.take();
                 current_comment_prefix = comment_prefix.map(|s| s.to_string());
                 current_lines.push((line_num, line.to_string()));
             } else {
                 // regular line
                 current_lines.push((line_num, line.to_string()));
-                // regular line clears pending shastra
+                // regular line clears pending shastra/khandita
                 pending_shastra = None;
+                pending_khandita = None;
                 current_comment_prefix = None;
             }
         }
@@ -342,6 +369,7 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
             lines: current_lines,
             is_deprecated,
             shastra: current_shastra,
+            khandita: current_khandita,
         });
     }
 
@@ -401,6 +429,7 @@ fn parse_paragraph(para: &Paragraph, file_name: &str, repo: &mut Repository) {
                 true,
                 para.is_deprecated,
                 para.shastra.clone(),
+                para.khandita.clone(),
             );
         }
     } else {
@@ -412,7 +441,7 @@ fn parse_paragraph(para: &Paragraph, file_name: &str, repo: &mut Repository) {
             } else {
                 line.as_str()
             };
-            parse_line_with_paragraph(content, file_name, *line_num, &para.text, repo, false, false, None);
+            parse_line_with_paragraph(content, file_name, *line_num, &para.text, repo, false, false, None, None);
         }
     }
 }
@@ -426,6 +455,7 @@ fn parse_line_with_paragraph(
     allow_bhasyas: bool,
     is_deprecated: bool,
     shastra: Option<String>,
+    khandita: Option<String>,
 ) {
     let mut chars = line.chars().peekable();
     let mut in_backtick = false;
@@ -476,10 +506,11 @@ fn parse_line_with_paragraph(
                         line: line_num,
                         is_deprecated,
                         shastra: shastra.clone(),
+                        khandita: khandita.clone(),
                     });
 
-                    // only add to mantras if this is a mula bhasya (not quoted, not tyakta)
-                    if shastra.is_none() && !is_deprecated {
+                    // only add to mantras if this is a mula bhasya (not quoted, not tyakta, not khandita)
+                    if shastra.is_none() && khandita.is_none() && !is_deprecated {
                         repo.mantras.entry(mantra_text.clone()).or_insert(Mantra {
                             text: mantra_text,
                             file: file_name.to_string(),

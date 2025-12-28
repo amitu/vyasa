@@ -23,3 +23,11 @@ shastra: physics
 
 This fails because `ether is the medium for light` is tyakta in the physics shastra.
 
+## Refuting a bhasya (khandita)
+
+khandita: physics
+> **^ether is the medium for light^** - we refute this: the Michelson-Morley
+> experiment disproved the existence of luminiferous ether.
+
+Note: since `ether is the medium for light` is already tyakta in physics, vyasa
+will show a note that the source has already abandoned this bhasya.

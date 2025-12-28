@@ -10,10 +10,11 @@
 > different files with different commentaries. each occurrence is a separate
 > bhasya providing a different perspective or context.
 
-## three forms of bhasya
+## four forms of bhasya
 
-> **^bhasya has three forms: bhasya, uddhrit, tyakta^** - a bhasya can be a new
-> definition, a quote from another shastra, or a deprecation of an existing mantra.
+> **^bhasya has four forms: bhasya, uddhrit, khandita, tyakta^** - a bhasya can be
+> a new definition, a quote from another shastra, a refutation of another shastra's
+> bhasya, or a deprecation of an existing bhasya.
 
 ### bhasya (definition)
 
@@ -44,6 +45,29 @@ shastra: physics
 
 > **^uddhrit does not create a new mantra^** - quoted bhasyas are references,
 > not definitions. they don't add to your mantra count.
+
+### khandita (खण्डित - refuted)
+
+> **^khandita refutes a bhasya from another shastra^** - the term means "refuted"
+> or "broken" in Sanskrit. use `khandita: name` on the line before a quote block
+> to indicate you are refuting a bhasya from that shastra.
+
+```markdown
+khandita: physics
+> **^ether is the medium for light^** - we refute this: the Michelson-Morley
+> experiment disproved the existence of luminiferous ether.
+```
+
+> **^khandita requires the bhasya to exist in source shastra^** - vyasa verifies
+> that the bhasya you're refuting actually exists. you cannot refute what doesn't
+> exist.
+
+> **^khandita notes when source already tyakta^** - if the source shastra has
+> already abandoned (tyakta) the bhasya, vyasa shows a note. you may choose to
+> recall your khandita or leave it with your own commentary explaining why.
+
+> **^khandita does not create a new mantra^** - refutations are responses to
+> external knowledge, not new definitions. they don't add to your mantra count.
 
 ### tyakta (त्यक्त - deprecated)
 

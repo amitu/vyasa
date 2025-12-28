@@ -60,6 +60,14 @@
 > - the mantra must exist in that shastra
 > - error if the bhasya is tyakta in source (you cannot quote abandoned knowledge)
 
+### khandita validation
+
+> **^vyasa validates refuted bhasyas^** - when you refute a bhasya from another
+> shastra using the `khandita: name` prefix:
+> - the shastra alias must be defined
+> - the bhasya must exist in that shastra (you cannot refute what doesn't exist)
+> - note if the bhasya is already tyakta in source (they already abandoned it)
+
 ## using in CI
 
 ```yaml

@@ -103,6 +103,23 @@ pub fn run(path: &Path) -> Result<(), String> {
         error_counts.push(format!("{} shastra quote errors", shastra_errors.len()));
     }
 
+    // check khandita (refuted) bhasyas
+    let (khandita_errors, khandita_notes) = check_khandita(&repo);
+    if !khandita_errors.is_empty() {
+        has_errors = true;
+        println!("found {} khandita errors:\n", khandita_errors.len());
+        for error in &khandita_errors {
+            println!("  {}\n", error);
+        }
+        error_counts.push(format!("{} khandita errors", khandita_errors.len()));
+    }
+    if !khandita_notes.is_empty() {
+        println!("found {} khandita notes:\n", khandita_notes.len());
+        for note in &khandita_notes {
+            println!("  {}\n", note);
+        }
+    }
+
     if has_errors {
         Err(error_counts.join(", "))
     } else {
@@ -298,6 +315,100 @@ fn check_shastra_quotes(repo: &Repository) -> Vec<String> {
     }
 
     errors
+}
+
+/// Check khandita (refuted) bhasyas: verify they exist in source shastra
+/// Returns: (errors, notes) - notes inform when source has tyakta'd the bhasya
+fn check_khandita(repo: &Repository) -> (Vec<String>, Vec<String>) {
+    let mut errors = Vec::new();
+    let mut notes = Vec::new();
+
+    // cache parsed external shastras
+    let mut shastra_repos: HashMap<String, Option<Repository>> = HashMap::new();
+
+    // find all bhasyas with khandita attribution
+    for bhasya in &repo.bhasyas {
+        if let Some(shastra_name) = &bhasya.khandita {
+            // resolve shastra name to path via shastra.json
+            let Some(shastra_path) = repo.shastra_config.aliases.get(shastra_name) else {
+                errors.push(format!(
+                    "{}:{}: undefined shastra '{}' for khandita ^{}^",
+                    bhasya.file,
+                    bhasya.line,
+                    shastra_name,
+                    truncate(&bhasya.mantra_text, 30)
+                ));
+                continue;
+            };
+
+            // check if it's a local folder path
+            let is_folder = shastra_path.starts_with('/')
+                || shastra_path.starts_with("./")
+                || shastra_path.starts_with("../");
+
+            if !is_folder {
+                errors.push(format!(
+                    "shastra '{}' refers to '{}' - only local folder paths are currently supported",
+                    shastra_name, shastra_path
+                ));
+                continue;
+            }
+
+            // check if resolved path exists
+            let path = Path::new(shastra_path);
+            if !path.exists() {
+                errors.push(format!(
+                    "shastra '{}' folder does not exist: {}",
+                    shastra_name, shastra_path
+                ));
+                continue;
+            }
+
+            // load the external shastra repo
+            let external_repo = shastra_repos
+                .entry(shastra_name.clone())
+                .or_insert_with(|| Repository::parse(path).ok());
+
+            if let Some(external) = external_repo {
+                // check if any bhasya exists for this mantra
+                let has_any_bhasya = external.bhasyas.iter().any(|b| {
+                    b.mantra_text == bhasya.mantra_text
+                });
+
+                if !has_any_bhasya {
+                    // no bhasya at all - error: can't refute what doesn't exist
+                    errors.push(format!(
+                        "{}:{}: cannot khandita non-existent bhasya from '{}': ^{}^",
+                        bhasya.file,
+                        bhasya.line,
+                        shastra_name,
+                        truncate(&bhasya.mantra_text, 30)
+                    ));
+                    continue;
+                }
+
+                // check if it's mula (non-tyakta) in source
+                let has_mula = external.mantras.contains_key(&bhasya.mantra_text);
+                if !has_mula {
+                    // only tyakta bhasya exists - note: they already abandoned it
+                    notes.push(format!(
+                        "{}:{}: khandita bhasya is already tyakta in '{}': ^{}^",
+                        bhasya.file,
+                        bhasya.line,
+                        shastra_name,
+                        truncate(&bhasya.mantra_text, 30)
+                    ));
+                }
+            } else {
+                errors.push(format!(
+                    "failed to parse shastra '{}' at {}",
+                    shastra_name, shastra_path
+                ));
+            }
+        }
+    }
+
+    (errors, notes)
 }
 
 /// Check for duplicate bhasyas - same mantra + commentary must be unique
