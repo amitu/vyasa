@@ -41,15 +41,15 @@ pub fn run(path: &Path) -> Result<(), String> {
         error_counts.push(format!("{} undefined anusrits", undefined_refs.len()));
     }
 
-    // _| kosha check verifies all kosha anusrits |_
-    let kosha_errors = check_kosha_anusrits(&repo);
-    if !kosha_errors.is_empty() {
+    // _| shastra check verifies all external shastra anusrits |_
+    let shastra_anusrit_errors = check_shastra_anusrits(&repo);
+    if !shastra_anusrit_errors.is_empty() {
         has_errors = true;
-        println!("found {} kosha anusrit errors:\n", kosha_errors.len());
-        for error in &kosha_errors {
+        println!("found {} shastra anusrit errors:\n", shastra_anusrit_errors.len());
+        for error in &shastra_anusrit_errors {
             println!("  {}\n", error);
         }
-        error_counts.push(format!("{} kosha errors", kosha_errors.len()));
+        error_counts.push(format!("{} shastra anusrit errors", shastra_anusrit_errors.len()));
     }
 
     // check shastra-quoted bhasyas
@@ -60,7 +60,7 @@ pub fn run(path: &Path) -> Result<(), String> {
         for error in &shastra_errors {
             println!("  {}\n", error);
         }
-        error_counts.push(format!("{} shastra errors", shastra_errors.len()));
+        error_counts.push(format!("{} shastra quote errors", shastra_errors.len()));
     }
     if !shastra_warnings.is_empty() {
         has_warnings = true;
@@ -82,45 +82,45 @@ pub fn run(path: &Path) -> Result<(), String> {
     }
 }
 
-// _| kosha check verifies all kosha anusrits |_
-fn check_kosha_anusrits(repo: &Repository) -> Vec<String> {
+// _| shastra check verifies all external shastra anusrits |_
+fn check_shastra_anusrits(repo: &Repository) -> Vec<String> {
     let mut errors = Vec::new();
 
-    // check each anusrit with a kosha
+    // check each anusrit with a shastra reference
     for anusrit in &repo.anusrits {
-        if let Some(kosha_name) = &anusrit.kosha {
-            // check if alias is defined in kosha.json
-            let Some(kosha_path) = repo.kosha_config.aliases.get(kosha_name) else {
+        if let Some(shastra_name) = &anusrit.shastra {
+            // check if alias is defined in shastra.json
+            let Some(shastra_path) = repo.shastra_config.aliases.get(shastra_name) else {
                 errors.push(format!(
-                    "{}:{}: undefined kosha '{}' in _{}_`@{}`",
+                    "{}:{}: undefined shastra '{}' in _{}_`@{}`",
                     anusrit.file,
                     anusrit.line,
-                    kosha_name,
+                    shastra_name,
                     truncate(&anusrit.mantra_text, 30),
-                    kosha_name
+                    shastra_name
                 ));
                 continue;
             };
 
             // check if it's a local folder path
-            let is_folder = kosha_path.starts_with('/')
-                || kosha_path.starts_with("./")
-                || kosha_path.starts_with("../");
+            let is_folder = shastra_path.starts_with('/')
+                || shastra_path.starts_with("./")
+                || shastra_path.starts_with("../");
 
             if !is_folder {
                 errors.push(format!(
-                    "kosha '{}' refers to '{}' - only local folder paths are currently supported",
-                    kosha_name, kosha_path
+                    "shastra '{}' refers to '{}' - only local folder paths are currently supported",
+                    shastra_name, shastra_path
                 ));
                 continue;
             }
 
             // check if resolved path exists
-            let path = Path::new(kosha_path);
+            let path = Path::new(shastra_path);
             if !path.exists() {
                 errors.push(format!(
-                    "kosha '{}' folder does not exist: {}",
-                    kosha_name, kosha_path
+                    "shastra '{}' folder does not exist: {}",
+                    shastra_name, shastra_path
                 ));
                 continue;
             }
@@ -141,8 +141,8 @@ fn check_shastra_quotes(repo: &Repository) -> (Vec<String>, Vec<String>) {
     // find all bhasyas with shastra attribution
     for bhasya in &repo.bhasyas {
         if let Some(shastra_name) = &bhasya.shastra {
-            // resolve shastra name to path via kosha.json
-            let Some(shastra_path) = repo.kosha_config.aliases.get(shastra_name) else {
+            // resolve shastra name to path via shastra.json
+            let Some(shastra_path) = repo.shastra_config.aliases.get(shastra_name) else {
                 errors.push(format!(
                     "{}:{}: undefined shastra '{}' for quoted ^{}^",
                     bhasya.file,
@@ -227,8 +227,8 @@ fn check_undefined_anusrits(repo: &Repository) -> Vec<(String, usize, String)> {
     let mut undefined = Vec::new();
 
     for anusrit in &repo.anusrits {
-        // skip external kosha anusrits (checked separately)
-        if anusrit.kosha.is_some() {
+        // skip external shastra anusrits (checked separately)
+        if anusrit.shastra.is_some() {
             continue;
         }
 

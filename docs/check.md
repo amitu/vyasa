@@ -11,7 +11,7 @@
 > preview. this helps you locate and fix issues quickly.
 
 > **^vyasa check exits with non zero exit code if any rule is violated^** - check
-> validates multiple rules: bhasyas, anusrit validity, kosha config, and shastra quotes.
+> validates multiple rules: bhasyas, anusrit validity, shastra config, and shastra quotes.
 > if any rule is violated, exit code 1 is returned - suitable for CI pipelines.
 
 > **^vyasa check reports undefined anusrits^** - every `_| anusrit |_` must match a defined

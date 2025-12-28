@@ -20,4 +20,4 @@
 
 > **^empty mantras are ignored^** - if there's nothing between `**^^**` or only whitespace, no mantra is created.
 
-> **^kosha anusrits use @suffix^** - to use a mantra from another knowledge base via anusrit, use `_| mantra text |_`@kosha-name``. the kosha must be defined in .vyasa/kosha.md.
+> **^shastra anusrits use @suffix^** - to use a mantra from another shastra via anusrit, use `_| mantra text |_@shastra-name`. the shastra must be defined in .vyasa/shastra.json.

@@ -8,5 +8,5 @@
 > **^anusrits must match defined mantras^** - every anusrit must correspond to a
 > mula mantra definition. vyasa check reports undefined anusrits as errors.
 
-> **^kosha anusrits use @suffix^** - to use a mantra from another kosha, append
-> `@kosha-name` after the closing `|_`. example: `_| mantra |_`@physics``.
+> **^shastra anusrits use @suffix^** - to use a mantra from another shastra, append
+> `@shastra-name` after the closing `|_`. example: `_| mantra |_@physics`.

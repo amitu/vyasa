@@ -34,15 +34,15 @@ pub struct Anusrit {
     pub mantra_text: String,
     pub file: String,
     pub line: usize,
-    /// `_| mantra |_`@kosha-name`` for external anusrits
-    pub kosha: Option<String>,
+    /// `_| mantra |_@shastra-name` for external anusrits
+    pub shastra: Option<String>,
 }
 
-/// Kosha configuration loaded from .vyasa/kosha.json
-/// Maps alias names to paths (local folders, git repos, or fastn-kosha)
+/// Shastra configuration loaded from .vyasa/shastra.json
+/// Maps alias names to paths (local folders)
 #[derive(Debug, Default)]
-pub struct KoshaConfig {
-    /// alias -> path mapping (merged from kosha.json and kosha.local.json)
+pub struct ShastraConfig {
+    /// alias -> path mapping (merged from shastra.json and shastra.local.json)
     pub aliases: HashMap<String, String>,
 }
 
@@ -51,7 +51,7 @@ pub struct Repository {
     pub mantras: HashMap<String, Mantra>,
     pub bhasyas: Vec<Bhasya>,
     pub anusrits: Vec<Anusrit>,
-    pub kosha_config: KoshaConfig,
+    pub shastra_config: ShastraConfig,
 }
 
 impl Repository {
@@ -59,10 +59,10 @@ impl Repository {
     pub fn parse(path: &Path) -> Result<Self, String> {
         let mut repo = Repository::default();
 
-        // find repository root and load kosha config
+        // find repository root and load shastra config
         let repo_root = find_repo_root(path);
         if let Some(root) = &repo_root {
-            repo.kosha_config = load_kosha_config(root);
+            repo.shastra_config = load_shastra_config(root);
         }
 
         for entry in WalkDir::new(path)
@@ -416,7 +416,7 @@ fn parse_line_with_paragraph(
             }
         }
 
-        // reference with optional @kosha
+        // reference with optional @shastra
         if c == '_' && chars.peek() == Some(&'|') {
             chars.next(); // consume |
             let mut ref_text = String::new();
@@ -434,20 +434,20 @@ fn parse_line_with_paragraph(
 
             let ref_text = ref_text.trim().to_string();
             if !ref_text.is_empty() {
-                // check for @kosha suffix
-                let mut kosha = None;
+                // check for @shastra suffix
+                let mut shastra_ref = None;
                 if chars.peek() == Some(&'@') {
                     chars.next(); // consume @
-                    let mut kosha_name = String::new();
+                    let mut shastra_name = String::new();
                     for c in chars.by_ref() {
                         if c.is_alphanumeric() || c == '-' || c == '_' {
-                            kosha_name.push(c);
+                            shastra_name.push(c);
                         } else {
                             break;
                         }
                     }
-                    if !kosha_name.is_empty() {
-                        kosha = Some(kosha_name);
+                    if !shastra_name.is_empty() {
+                        shastra_ref = Some(shastra_name);
                     }
                 }
 
@@ -455,7 +455,7 @@ fn parse_line_with_paragraph(
                     mantra_text: ref_text,
                     file: file_name.to_string(),
                     line: line_num,
-                    kosha,
+                    shastra: shastra_ref,
                 });
             }
         }
@@ -573,19 +573,19 @@ pub fn find_repo_root(path: &Path) -> Option<std::path::PathBuf> {
     None
 }
 
-fn load_kosha_config(repo_root: &Path) -> KoshaConfig {
-    let mut config = KoshaConfig::default();
+fn load_shastra_config(repo_root: &Path) -> ShastraConfig {
+    let mut config = ShastraConfig::default();
 
-    // load .vyasa/kosha.json - main kosha aliases
-    let kosha_file = repo_root.join(".vyasa/kosha.json");
-    if let Ok(content) = fs::read_to_string(&kosha_file) {
+    // load .vyasa/shastra.json - main shastra aliases
+    let shastra_file = repo_root.join(".vyasa/shastra.json");
+    if let Ok(content) = fs::read_to_string(&shastra_file) {
         if let Ok(aliases) = serde_json::from_str::<HashMap<String, String>>(&content) {
             config.aliases = aliases;
         }
     }
 
-    // load .vyasa/kosha.local.json - local overrides (gitignored)
-    let local_file = repo_root.join(".vyasa/kosha.local.json");
+    // load .vyasa/shastra.local.json - local overrides (gitignored)
+    let local_file = repo_root.join(".vyasa/shastra.local.json");
     if let Ok(content) = fs::read_to_string(&local_file) {
         if let Ok(local_aliases) = serde_json::from_str::<HashMap<String, String>>(&content) {
             // local overrides main config

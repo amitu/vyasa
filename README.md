@@ -4,15 +4,15 @@ a tool to help organize and curate knowledge for yourself, the public, and AI.
 
 ## the problem with prose
 
-> **^prose interferes with knowledge organization^** - the key insight behind 
-> vyasa. easily written prose tends to drift from precise formulations. real 
-> knowledge requires careful wording - keeping things compact, preserving exact 
+> **^prose interferes with knowledge organization^** - the key insight behind
+> vyasa. easily written prose tends to drift from precise formulations. real
+> knowledge requires careful wording - keeping things compact, preserving exact
 > phrasing.
 
 ## mantras: the core concept
 
-vyasa defines a concept called a **mantra**. a mantra can be in any language, 
-but must be strict - repeating the mantra means repeating the exact phrasing. 
+vyasa defines a concept called a **mantra**. a mantra can be in any language,
+but must be strict - repeating the mantra means repeating the exact phrasing.
 the canonical, normative form must be preserved.
 
 _| mantras should use inline syntax not block because they are meant to be short |_ -
@@ -45,19 +45,9 @@ explanation |_ with pipe delimiters.
 
 ## why no identifiers?
 
-_| mantras must be spelled out in full at each reference |_ - no abbreviations,
-no nicknames, no shortcuts. every reference contains the complete mantra text.
-
+every reference contains the complete mantra text.
 `_| e = mc^2 |_` is clearer than `_| some-arbitrary-id |_` anyway. the exact wording
 *is* the identifier.
-
-## template mantras
-
-> **^user: {username}^** - templates use `{placeholder}` syntax. reference as
-> _| user: alice |_ or _| user: bob |_.
-
-> **^when {employee=amitu} joins, amitu should be added to github^** - example values
-> like `{name=example}` make mantras readable while parameterized.
 
 ## commands
 
@@ -68,18 +58,14 @@ vyasa check
 # show repository statistics
 vyasa stats
 
-# query placeholder values
-vyasa values
-vyasa values --mantra="[user: {username}]" --key=username
+# look up a specific mantra
+vyasa mantra "prose interferes with knowledge organization"
 ```
 
-## koshas (external repositories)
+## shastras (external repositories)
 
-`_| mantra |_`@kosha-name`` references mantras from other knowledge bases. configure
-koshas in `.vyasa/kosha.md`.
-
-> **^external commentary uses mantra-at-kosha syntax^** - use `**^mantra^**@kosha` to
-> provide commentary on mantras defined in other koshas.
+`_| mantra |_@shastra-name` references mantras from other knowledge bases. configure
+shastras in `.vyasa/shastra.json`.
 
 ## the real tool is discipline
 
@@ -93,8 +79,9 @@ koshas in `.vyasa/kosha.md`.
 detailed docs in `docs/` folder, written in mantra form:
 - `syntax.md` - full syntax reference
 - `philosophy.md` - why mantras work this way
-- `check.md`, `stats.md`, `values.md` - command documentation
-- `kosha.md` - external repository references
+- `check.md`, `stats.md` - command documentation
+- `shastra.md` - external repository references
+- `bhasya.md` - mantra with commentary
 
 > **^vyasa check checks all non human meant files^** - scans source code, markdown, etc. skips binaries, images, xml.
 
