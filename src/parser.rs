@@ -261,7 +261,10 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                 _ => false,
             };
 
-            if is_quote_line && same_comment_style {
+            // check if deprecation status changed (>> vs >) - if so, end current block and start new
+            let deprecation_changed = is_quote_line && (is_deprecated != is_deprecated_line);
+
+            if is_quote_line && same_comment_style && !deprecation_changed {
                 current_lines.push((line_num, line.to_string()));
             } else if is_empty && same_comment_style {
                 // empty line inside quote block - include it to preserve structure
@@ -271,7 +274,7 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                     current_lines.push((line_num, ">".to_string()));
                 }
             } else {
-                // non-quote line or different comment style ends the quote block
+                // non-quote line, different comment style, or deprecation changed - ends the quote block
                 let text = current_lines.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
                 paragraphs.push(Paragraph {
                     text,
@@ -280,13 +283,24 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                     is_deprecated,
                     shastra: current_shastra.take(),
                 });
-                in_quote_block = false;
-                is_deprecated = false;
-                current_comment_prefix = None;
-                // start new paragraph with this line if not empty
-                if !is_empty {
+
+                // if this line is also a quote line (e.g., deprecation changed), start a new quote block
+                if is_quote_line && same_comment_style {
+                    in_quote_block = true;
+                    is_deprecated = is_deprecated_line;
+                    current_shastra = pending_shastra.take();
+                    current_comment_prefix = comment_prefix.map(|s| s.to_string());
                     start_line = line_num;
                     current_lines.push((line_num, line.to_string()));
+                } else {
+                    in_quote_block = false;
+                    is_deprecated = false;
+                    current_comment_prefix = None;
+                    // start new paragraph with this line if not empty
+                    if !is_empty {
+                        start_line = line_num;
+                        current_lines.push((line_num, line.to_string()));
+                    }
                 }
             }
         } else {

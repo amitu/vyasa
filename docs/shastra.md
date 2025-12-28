@@ -49,7 +49,7 @@ shastra: physics
 
 > **^uddhrit creates a local copy of the bhasya^** - the quoted bhasya appears
 > in your repository but references the source. vyasa check verifies the
-> source still has this mantra and it hasn't been deprecated.
+> source still has this mantra and it isn't tyakta.
 
 ## validation
 
@@ -57,8 +57,8 @@ shastra: physics
 > - all @shastra-name anusrits have matching aliases in shastra.json
 > - all shastra paths exist
 > - all uddhrit mantras exist in their source shastra
-> - warnings if quoted mantras are deprecated in source
+> - warnings if quoted bhasyas are tyakta in source
 
-> **^deprecated mantras trigger warnings not errors^** - if you quote a mantra
-> that has been deprecated (tyakta) in the source shastra, vyasa check warns
-> you but doesn't fail. this gives you time to update your references.
+> **^quoting tyakta triggers warnings not errors^** - if you quote a bhasya
+> that is tyakta in the source shastra, vyasa check warns you but doesn't
+> fail. this gives you time to update your references.

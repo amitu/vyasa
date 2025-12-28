@@ -130,7 +130,7 @@ fn check_shastra_anusrits(repo: &Repository) -> Vec<String> {
     errors
 }
 
-/// Check shastra-quoted bhasyas: verify they exist in source and warn if deprecated
+/// Check shastra-quoted bhasyas: verify they exist in source and warn if tyakta
 fn check_shastra_quotes(repo: &Repository) -> (Vec<String>, Vec<String>) {
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
@@ -196,14 +196,14 @@ fn check_shastra_quotes(repo: &Repository) -> (Vec<String>, Vec<String>) {
                     continue;
                 }
 
-                // check if the mantra is deprecated in the external shastra
-                let is_deprecated_externally = external.bhasyas.iter().any(|b| {
+                // check if the bhasya is tyakta in the external shastra
+                let is_tyakta_externally = external.bhasyas.iter().any(|b| {
                     b.mantra_text == bhasya.mantra_text && b.is_deprecated
                 });
 
-                if is_deprecated_externally {
+                if is_tyakta_externally {
                     warnings.push(format!(
-                        "{}:{}: quoted mantra is deprecated in '{}': ^{}^",
+                        "{}:{}: quoted tyakta from '{}': ^{}^",
                         bhasya.file,
                         bhasya.line,
                         shastra_name,

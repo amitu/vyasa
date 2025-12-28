@@ -23,6 +23,10 @@
 > **^vyasa check reports undefined anusrits^** - every `_| anusrit |_` must match
 > a defined mantra exactly. undefined anusrits are reported as errors.
 
+> **^anusrits to tyakta-only mantras are invalid^** - if a mantra only appears in
+> tyakta bhasyas (no regular bhasya defines it), anusrits to that mantra are
+> treated as undefined. tyakta marks knowledge as abandoned - you cannot rely on it.
+
 > **^anusrits in source code are validated^** - mantras referenced in code comments
 > using `_| mantra |_` syntax are checked just like those in markdown files.
 
@@ -38,9 +42,9 @@
 > using the `shastra: name` prefix:
 > - the shastra alias must be defined
 > - the mantra must exist in that shastra
-> - warning if the mantra is deprecated (tyakta) in source
+> - warning if the bhasya is tyakta in source
 
-> **^deprecated uddhrit triggers warning not error^** - quoting a deprecated mantra
+> **^quoting tyakta triggers warning not error^** - quoting a tyakta bhasya
 > shows a warning but doesn't fail the check. this gives you time to update.
 
 ## success and failure

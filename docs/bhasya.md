@@ -39,7 +39,7 @@ shastra: physics
 
 > **^uddhrit requires the mantra to exist in source shastra^** - vyasa check
 > verifies that quoted mantras actually exist in the referenced shastra.
-> if the source shastra deprecates that mantra, you'll get a warning.
+> if the bhasya is tyakta in source, you'll get a warning.
 
 > **^uddhrit does not create a new mantra^** - quoted bhasyas are references,
 > not definitions. they don't add to your mantra count.
@@ -54,12 +54,16 @@ shastra: physics
 >> we now prefer the new method described elsewhere.
 ```
 
-> **^tyakta warns consumers of the mantra^** - when someone quotes (uddhrit)
-> a deprecated mantra from your shastra, vyasa check will warn them that
-> they're using deprecated knowledge.
+> **^tyakta warns consumers of the bhasya^** - when someone quotes (uddhrit)
+> a tyakta bhasya from your shastra, vyasa check will warn them that
+> they're referencing abandoned knowledge.
 
-> **^tyakta should include deprecation commentary^** - explain why the mantra
-> is deprecated and what should be used instead.
+> **^tyakta-only mantras are invalid for anusrit^** - if a mantra only appears in
+> tyakta bhasyas (no regular bhasya defines it), anusrits to that mantra are
+> treated as undefined. you cannot rely on abandoned knowledge.
+
+> **^tyakta should include deprecation commentary^** - explain why the bhasya
+> is abandoned and what should be used instead.
 
 ## bhasyas in source code
 
