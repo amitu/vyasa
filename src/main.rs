@@ -40,9 +40,9 @@ enum Commands {
     Mantra {
         /// The mantra text to look up
         text: String,
-        /// Also show where this mantra is referenced
+        /// Also show anusrits (where this mantra is used)
         #[arg(long, short)]
-        references: bool,
+        anusrits: bool,
         /// Path to the repository (defaults to current directory)
         #[arg(long, default_value = ".")]
         path: PathBuf,
@@ -63,13 +63,13 @@ enum Commands {
         /// Path to the repository (defaults to current directory)
         #[arg(default_value = ".")]
         path: PathBuf,
-        /// Maximum number of buckets for reference histogram (0 for no bucketing)
+        /// Maximum number of buckets for anusrit histogram (0 for no bucketing)
         #[arg(long, default_value = "10")]
         buckets: usize,
     },
     /// Query placeholder values from template mantras
     Values {
-        /// Filter by mantra reference, e.g. --mantra="[user: {name}]"
+        /// Filter by mantra anusrit, e.g. --mantra="[user: {name}]"
         #[arg(long, short)]
         mantra: Option<String>,
         /// Filter by placeholder key name
@@ -100,9 +100,9 @@ fn main() {
         Commands::Status { path, verbose } => status::run(&path, verbose),
         Commands::Mantra {
             text,
-            references,
+            anusrits,
             path,
-        } => mantra::run(&path, &text, references),
+        } => mantra::run(&path, &text, anusrits),
         Commands::List {
             filter,
             pending,

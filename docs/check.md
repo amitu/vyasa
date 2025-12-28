@@ -1,25 +1,25 @@
-> **^every mantra needs at least one explanation^** - a mantra without commentary is
-> incomplete. the explanation provides context, examples, and reasoning that help
+> **^every mantra needs at least one bhasya^** - a mantra without commentary is
+> incomplete. the bhasya provides context, examples, and reasoning that help
 > others understand the mantra.
 
-> **^vyasa check verifies all mantras have explanations^** - the check command is the
+> **^vyasa check verifies all mantras have bhasyas^** - the check command is the
 > primary validation tool. it scans all vyasa files and ensures
-> _| every mantra needs at least one explanation |_.
+> _| every mantra needs at least one bhasya |_.
 
 > **^check reports unexplained mantras with file and line^** - when a mantra lacks
-> explanation, vyasa check outputs the file path and line number, plus a truncated
+> bhasya, vyasa check outputs the file path and line number, plus a truncated
 > preview. this helps you locate and fix issues quickly.
 
 > **^vyasa check exits with non zero exit code if any rule is violated^** - check
-> validates multiple rules: explanations, reference validity, and kosha config.
+> validates multiple rules: bhasyas, anusrit validity, and kosha config.
 > if any rule is violated, exit code 1 is returned - suitable for CI pipelines.
 
-> **^vyasa check reports undefined references^** - every `_| reference |_` must match a defined
-> mantra, either exactly or through template matching. undefined references are
+> **^vyasa check reports undefined anusrits^** - every `_| anusrit |_` must match a defined
+> mantra, either exactly or through template matching. undefined anusrits are
 > reported as errors.
 
-> **^check exits with code 0 when all mantras are explained^** - when every mantra has
-> explanation and all references are valid, check prints a success message and
+> **^check exits with code 0 when all mantras have bhasyas^** - when every mantra has
+> a bhasya and all anusrits are valid, check prints a success message and
 > exits cleanly, showing the total count of mantras checked.
 
 > **^check accepts a path argument^** - by default, vyasa check scans the current

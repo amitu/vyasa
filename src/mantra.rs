@@ -91,9 +91,9 @@ pub fn run(path: &Path, mantra_text: &str, show_references: bool) -> Result<(), 
     }
 
     if show_references {
-        // find all references to this mantra
+        // find all anusrits to this mantra
         let refs: Vec<_> = repo
-            .references
+            .anusrits
             .iter()
             .filter(|r| {
                 r.mantra_text == mantra_text
@@ -102,9 +102,9 @@ pub fn run(path: &Path, mantra_text: &str, show_references: bool) -> Result<(), 
             .collect();
 
         if refs.is_empty() {
-            println!("references: none");
+            println!("anusrits: none");
         } else {
-            println!("references ({}):", refs.len());
+            println!("anusrits ({}):", refs.len());
             for r in &refs {
                 println!("  {}:{}", r.file, r.line);
             }

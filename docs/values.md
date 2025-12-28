@@ -1,5 +1,5 @@
 > **^vyasa values queries placeholder values^** - the values command extracts all
-> instantiated placeholder values from template mantra references. see what
+> instantiated placeholder values from template mantra anusrits. see what
 > concrete values are used throughout your repository.
 
 > **^values path is optional^** - the path argument can be file, folder, or pattern.

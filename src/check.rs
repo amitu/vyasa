@@ -26,26 +26,26 @@ pub fn run(path: &Path) -> Result<(), String> {
         error_counts.push(format!("{} unexplained mantras", unexplained.len()));
     }
 
-    // _| vyasa check reports undefined references |_
-    let undefined_refs = check_undefined_references(&repo);
+    // _| vyasa check reports undefined anusrits |_
+    let undefined_refs = check_undefined_anusrits(&repo);
     if !undefined_refs.is_empty() {
         has_errors = true;
         println!(
-            "found {} undefined references:\n",
+            "found {} undefined anusrits:\n",
             undefined_refs.len()
         );
         for (file, line, text) in &undefined_refs {
             println!("  {}:{}", file, line);
-            println!("    ref: {}\n", truncate(text, 60));
+            println!("    anusrit: {}\n", truncate(text, 60));
         }
-        error_counts.push(format!("{} undefined references", undefined_refs.len()));
+        error_counts.push(format!("{} undefined anusrits", undefined_refs.len()));
     }
 
-    // _| kosha check verifies all kosha references |_
-    let kosha_errors = check_kosha_references(&repo, path);
+    // _| kosha check verifies all kosha anusrits |_
+    let kosha_errors = check_kosha_anusrits(&repo, path);
     if !kosha_errors.is_empty() {
         has_errors = true;
-        println!("found {} kosha reference errors:\n", kosha_errors.len());
+        println!("found {} kosha anusrit errors:\n", kosha_errors.len());
         for error in &kosha_errors {
             println!("  {}\n", error);
         }
@@ -71,9 +71,9 @@ pub fn run(path: &Path) -> Result<(), String> {
     }
 }
 
-// _| kosha check verifies all kosha references |_
+// _| kosha check verifies all kosha anusrits |_
 // _| when a mantra from other kosha is referred, that mantra must exist in canon of that kosha |_
-fn check_kosha_references(repo: &Repository, repo_path: &Path) -> Vec<String> {
+fn check_kosha_anusrits(repo: &Repository, repo_path: &Path) -> Vec<String> {
     let mut errors = Vec::new();
 
     // collect all defined kosha aliases
@@ -119,17 +119,17 @@ fn check_kosha_references(repo: &Repository, repo_path: &Path) -> Vec<String> {
         }
     };
 
-    // check each reference with a kosha
-    for reference in &repo.references {
-        if let Some(kosha_name) = &reference.kosha {
+    // check each anusrit with a kosha
+    for anusrit in &repo.anusrits {
+        if let Some(kosha_name) = &anusrit.kosha {
             // check if alias is defined
             if !defined_aliases.contains(kosha_name.as_str()) {
                 errors.push(format!(
                     "{}:{}: undefined kosha '{}' in _{}_`@{}`",
-                    reference.file,
-                    reference.line,
+                    anusrit.file,
+                    anusrit.line,
                     kosha_name,
-                    truncate(&reference.mantra_text, 30),
+                    truncate(&anusrit.mantra_text, 30),
                     kosha_name
                 ));
                 continue;
@@ -170,13 +170,13 @@ fn check_kosha_references(repo: &Repository, repo_path: &Path) -> Vec<String> {
                         .or_insert_with(|| load_kosha_canon(kosha_name, repo));
 
                     if let Some(canon) = canon {
-                        if canon.get(&reference.mantra_text).is_none() {
+                        if canon.get(&anusrit.mantra_text).is_none() {
                             errors.push(format!(
                                 "{}:{}: mantra not in {}'s canon: _{}_`@{}`",
-                                reference.file,
-                                reference.line,
+                                anusrit.file,
+                                anusrit.line,
                                 kosha_name,
-                                truncate(&reference.mantra_text, 30),
+                                truncate(&anusrit.mantra_text, 30),
                                 kosha_name
                             ));
                         }
@@ -198,7 +198,7 @@ fn check_kosha_references(repo: &Repository, repo_path: &Path) -> Vec<String> {
                 // check if alias is defined
                 if !defined_aliases.contains(kosha_name.as_str()) {
                     errors.push(format!(
-                        "canon references undefined kosha '{}' for ^{}^@{}",
+                        "canon anusrit references undefined kosha '{}' for ^{}^@{}",
                         kosha_name,
                         truncate(&entry.mantra, 30),
                         kosha_name
@@ -228,25 +228,25 @@ fn check_kosha_references(repo: &Repository, repo_path: &Path) -> Vec<String> {
     errors
 }
 
-// _| vyasa check reports undefined references |_
-fn check_undefined_references(repo: &Repository) -> Vec<(String, usize, String)> {
+// _| vyasa check reports undefined anusrits |_
+fn check_undefined_anusrits(repo: &Repository) -> Vec<(String, usize, String)> {
     let mut undefined = Vec::new();
 
-    for reference in &repo.references {
-        // skip external kosha references (checked separately)
-        if reference.kosha.is_some() {
+    for anusrit in &repo.anusrits {
+        // skip external kosha anusrits (checked separately)
+        if anusrit.kosha.is_some() {
             continue;
         }
 
-        // check if reference matches a mantra (exact or template)
-        let is_defined = repo.mantras.contains_key(&reference.mantra_text)
-            || reference.matched_template.is_some();
+        // check if anusrit matches a mantra (exact or template)
+        let is_defined = repo.mantras.contains_key(&anusrit.mantra_text)
+            || anusrit.matched_template.is_some();
 
         if !is_defined {
             undefined.push((
-                reference.file.clone(),
-                reference.line,
-                reference.mantra_text.clone(),
+                anusrit.file.clone(),
+                anusrit.line,
+                anusrit.mantra_text.clone(),
             ));
         }
     }

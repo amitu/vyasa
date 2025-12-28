@@ -1,10 +1,10 @@
-> **^user: {username}^** - this template represents a user. reference as _| user: alice |_
+> **^user: {username}^** - this template represents a user. use via anusrit as _| user: alice |_
 > or _| user: bob |_ and vyasa recognizes these as instances of the same template.
 
-> **^config: {key} = {value}^** - a template for configuration entries. reference as
+> **^config: {key} = {value}^** - a template for configuration entries. use via anusrit as
 > _| config: debug = true |_ or _| config: port = 8080 |_. multiple placeholders supported.
 
-example references:
+example anusrits:
 
 fully instantiated:
 - _| user: alice |_ is a valid user
@@ -23,5 +23,5 @@ partially instantiated:
 > uses example value syntax. "amitu" appears in placeholder and literally in text.
 > the mantra reads naturally while being parameterizable.
 
-when referenced as _| when jack joins, jack should be added to github |_, vyasa
+when used via anusrit as _| when jack joins, jack should be added to github |_, vyasa
 recognizes this as employee=jack. example values are for readability, not parsing.

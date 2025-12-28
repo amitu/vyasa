@@ -4,11 +4,11 @@ use std::path::Path;
 
 pub fn run(path: &Path, buckets: usize) -> Result<(), String> {
     let repo = Repository::parse(path)?;
-    let ref_counts = repo.reference_counts();
+    let anusrit_counts = repo.anusrit_counts();
 
     let total_mantras = repo.mantras.len();
     let total_bhasyas = repo.bhasyas.len();
-    let total_references = repo.references.len();
+    let total_anusrits = repo.anusrits.len();
     let unreferenced = repo.unreferenced_mantras().len();
 
     // load canon for stats
@@ -23,7 +23,7 @@ pub fn run(path: &Path, buckets: usize) -> Result<(), String> {
 
     println!("mantras:      {}", total_mantras);
     println!("bhasyas:      {}", total_bhasyas);
-    println!("references:   {}", total_references);
+    println!("anusrits:     {}", total_anusrits);
     println!("unreferenced: {}", unreferenced);
 
     // canon stats
@@ -63,14 +63,14 @@ pub fn run(path: &Path, buckets: usize) -> Result<(), String> {
         return Ok(());
     }
 
-    // popular mantras (>10 references)
-    let popular: Vec<_> = ref_counts
+    // popular mantras (>10 anusrits)
+    let popular: Vec<_> = anusrit_counts
         .iter()
         .filter(|(_, &count)| count > 10)
         .collect();
 
     if !popular.is_empty() {
-        println!("\npopular mantras (>10 references):");
+        println!("\npopular mantras (>10 anusrits):");
         let mut popular: Vec<_> = popular.into_iter().collect();
         popular.sort_by(|a, b| b.1.cmp(a.1));
         for (mantra, count) in popular {
@@ -78,13 +78,13 @@ pub fn run(path: &Path, buckets: usize) -> Result<(), String> {
         }
     }
 
-    // reference histogram
+    // anusrit histogram
     if buckets > 0 {
-        println!("\nreference distribution:");
-        print_histogram(&ref_counts, buckets, total_mantras);
-    } else if buckets == 0 && !ref_counts.is_empty() {
-        println!("\nreferences per mantra:");
-        let mut counts: Vec<_> = ref_counts.iter().collect();
+        println!("\nanusrit distribution:");
+        print_histogram(&anusrit_counts, buckets, total_mantras);
+    } else if buckets == 0 && !anusrit_counts.is_empty() {
+        println!("\nanusrits per mantra:");
+        let mut counts: Vec<_> = anusrit_counts.iter().collect();
         counts.sort_by(|a, b| b.1.cmp(a.1));
         for (mantra, count) in counts {
             println!("  {:>4}x  {}", count, truncate(mantra, 50));
@@ -95,14 +95,14 @@ pub fn run(path: &Path, buckets: usize) -> Result<(), String> {
 }
 
 fn print_histogram(
-    ref_counts: &std::collections::HashMap<String, usize>,
+    anusrit_counts: &std::collections::HashMap<String, usize>,
     max_buckets: usize,
     total_mantras: usize,
 ) {
-    // count of mantras with 0 references
-    let zero_refs = total_mantras - ref_counts.len();
+    // count of mantras with 0 anusrits
+    let zero_refs = total_mantras - anusrit_counts.len();
 
-    let max_refs = *ref_counts.values().max().unwrap_or(&0);
+    let max_refs = *anusrit_counts.values().max().unwrap_or(&0);
 
     // use at most max_buckets-1 for non-zero refs (reserve one for 0)
     let effective_buckets = if max_refs > 0 { max_buckets - 1 } else { 0 };
@@ -117,7 +117,7 @@ fn print_histogram(
     let mut bucket_counts = vec![0usize; num_buckets + 1];
     bucket_counts[0] = zero_refs;
 
-    for &count in ref_counts.values() {
+    for &count in anusrit_counts.values() {
         if count > 0 {
             let bucket = ((count - 1) / bucket_size) + 1;
             let bucket = bucket.min(num_buckets);
@@ -151,9 +151,9 @@ fn print_histogram(
         };
         let bar: String = "█".repeat(bar_len);
         if start == end {
-            println!("  {:>3}     refs: {:>4} {}", start, count, bar);
+            println!("  {:>3}  anusrits: {:>4} {}", start, count, bar);
         } else {
-            println!("  {:>3}-{:<3} refs: {:>4} {}", start, end, count, bar);
+            println!("  {:>3}-{:<3} anusrits: {:>4} {}", start, end, count, bar);
         }
     }
 }

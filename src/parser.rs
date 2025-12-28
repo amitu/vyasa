@@ -13,7 +13,8 @@ pub struct Mantra {
     pub is_template: bool,
 }
 
-/// A bhasya is a mantra with its commentary (the complete teaching unit)
+/// A bhasya is a mula mantra (मूल मंत्र) with its commentary (the complete teaching unit)
+/// Mula mantra uses **^mantra^** syntax inside quote blocks
 #[derive(Debug, Clone)]
 pub struct Bhasya {
     pub mantra_text: String,
@@ -32,13 +33,14 @@ pub struct ExternalCommentary {
     pub line: usize,
 }
 
+/// An anusrit (अनुसृत) is a mantra reference using _| mantra |_ syntax
 #[derive(Debug, Clone)]
-pub struct Reference {
+pub struct Anusrit {
     pub mantra_text: String,
     pub file: String,
     pub line: usize,
     pub matched_template: Option<String>,
-    // `_| mantra |_@kosha-name` for external references
+    /// `_| mantra |_`@kosha-name`` for external anusrits
     pub kosha: Option<String>,
 }
 
@@ -66,7 +68,7 @@ pub struct KoshaConfig {
 pub struct Repository {
     pub mantras: HashMap<String, Mantra>,
     pub bhasyas: Vec<Bhasya>,
-    pub references: Vec<Reference>,
+    pub anusrits: Vec<Anusrit>,
     pub external_commentaries: Vec<ExternalCommentary>,
     pub kosha_config: KoshaConfig,
 }
@@ -147,7 +149,7 @@ impl Repository {
         self.mantras
             .values()
             .filter(|m| {
-                !self.references.iter().any(|r| {
+                !self.anusrits.iter().any(|r| {
                     r.mantra_text == m.text
                         || r.matched_template.as_ref() == Some(&m.text)
                 })
@@ -162,14 +164,14 @@ impl Repository {
             .collect()
     }
 
-    pub fn reference_counts(&self) -> HashMap<String, usize> {
+    pub fn anusrit_counts(&self) -> HashMap<String, usize> {
         let mut counts: HashMap<String, usize> = HashMap::new();
-        for reference in &self.references {
+        for anusrit in &self.anusrits {
             // count against template if matched, otherwise the literal text
-            let key = reference
+            let key = anusrit
                 .matched_template
                 .as_ref()
-                .unwrap_or(&reference.mantra_text);
+                .unwrap_or(&anusrit.mantra_text);
             *counts.entry(key.clone()).or_insert(0) += 1;
         }
         counts
@@ -178,21 +180,21 @@ impl Repository {
     pub fn extract_placeholder_values(&self) -> Vec<PlaceholderValue> {
         let mut values = Vec::new();
 
-        for reference in &self.references {
-            if let Some(template_text) = &reference.matched_template {
+        for anusrit in &self.anusrits {
+            if let Some(template_text) = &anusrit.matched_template {
                 if let Some(mantra) = self.mantras.get(template_text) {
                     if mantra.is_template {
                         let extracted = extract_values_from_reference(
                             template_text,
-                            &reference.mantra_text,
+                            &anusrit.mantra_text,
                         );
                         for (key, value) in extracted {
                             values.push(PlaceholderValue {
                                 template: template_text.clone(),
                                 key,
                                 value,
-                                file: reference.file.clone(),
-                                line: reference.line,
+                                file: anusrit.file.clone(),
+                                line: anusrit.line,
                             });
                         }
                     }
@@ -489,7 +491,7 @@ fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, parag
                     }
                 }
 
-                repo.references.push(Reference {
+                repo.anusrits.push(Anusrit {
                     mantra_text: ref_text,
                     file: file_name.to_string(),
                     line: line_num,
@@ -579,17 +581,17 @@ fn resolve_template_references(repo: &mut Repository) {
         .map(|m| (m.text.clone(), build_template_regex(&m.text)))
         .collect();
 
-    for reference in &mut repo.references {
+    for anusrit in &mut repo.anusrits {
         // skip if already an exact match
-        if repo.mantras.contains_key(&reference.mantra_text) {
+        if repo.mantras.contains_key(&anusrit.mantra_text) {
             continue;
         }
 
         // try to match against templates
         for (template_text, template_regex) in &templates {
             if let Some(tr) = template_regex {
-                if matches_template(tr, &reference.mantra_text) {
-                    reference.matched_template = Some(template_text.clone());
+                if matches_template(tr, &anusrit.mantra_text) {
+                    anusrit.matched_template = Some(template_text.clone());
                     break;
                 }
             }

@@ -3,23 +3,23 @@
 > precise formulations. this feels natural but undermines preserving exact knowledge.
 
 > **^knowledge requires exact wording^** - unlike casual writing, knowledge should be
-> stated precisely. the wording matters. when we reference an idea, we should
-> reference *that exact idea*, not a paraphrase that might subtly shift meaning.
+> stated precisely. the wording matters. when we use an idea via anusrit, we should
+> use *that exact idea*, not a paraphrase that might subtly shift meaning.
 
 > **^mantras are canonical formulations^** - a mantra is the authoritative way to express
 > an idea. once defined, it should not change without careful consideration.
 > _| mantras should not change once defined |_ is a feature, not a limitation.
 
 > **^mantras should not change once defined^** - stability is essential for knowledge.
-> if a mantra keeps changing, references become unreliable. when you need to evolve
+> if a mantra keeps changing, anusrits become unreliable. when you need to evolve
 > an idea, create a new mantra rather than editing the old one.
 
-> **^mantras must be spelled out in full at each reference^** - no abbreviations, no
-> nicknames, no shortcuts. every reference contains the complete mantra text. this
-> forces intentionality about what you're referencing.
+> **^mantras must be spelled out in full at each anusrit^** - no abbreviations, no
+> nicknames, no shortcuts. every anusrit contains the complete mantra text. this
+> forces intentionality about what you're using.
 
-> **^repetition reinforces precision^** - because _| mantras must be spelled out in full at each reference |_,
-> you can't hide behind abbreviations. every reference is a recommitment to the
+> **^repetition reinforces precision^** - because _| mantras must be spelled out in full at each anusrit |_,
+> you can't hide behind abbreviations. every anusrit is a recommitment to the
 > exact formulation.
 
 > **^drift becomes visible^** - if you want to change wording, you must explicitly create
