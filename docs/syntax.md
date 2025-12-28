@@ -20,12 +20,4 @@
 
 > **^empty mantras are ignored^** - if there's nothing between `**^^**` or only whitespace, no mantra is created.
 
-> **^template placeholders use curly braces^** - mantras can contain {name} placeholders. for example **^user: {username}^** can be used via anusrit as _| user: alice |_ or _| user: bob |_.
-
-> **^template placeholders can include example values as {name=example}^** - to make mantras readable, include an example: **^when {employee=amitu} joins, amitu should be added to github^** reads naturally while being parameterized. use it via anusrit as _| when jack joins, jack should be added to github |_.
-
-> **^example values appear literally in the mantra text^** - in the mantra above, "amitu" appears both in the placeholder and in the literal text. when you use via anusrit with "jack", all occurrences are substituted.
-
-> **^when using a template anusrit you can use placeholder or instantiated form^** - three options: _| user: {username} |_ (template itself), _| user: amitu |_ (fully instantiated), or _| config: {key} = true |_ (partially instantiated).
-
 > **^kosha anusrits use @suffix^** - to use a mantra from another knowledge base via anusrit, use `_| mantra text |_`@kosha-name``. the kosha must be defined in .vyasa/kosha.md.

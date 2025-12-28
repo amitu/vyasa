@@ -31,14 +31,14 @@ pub fn run(path: &Path, kosha: Option<String>, count: usize) -> Result<(), Strin
     match kosha {
         Some(kosha_name) => {
             if aliases.is_empty() {
-                return Err("no koshas configured in .vyasa/kosha.md".to_string());
+                return Err("no koshas configured in .vyasa/kosha.json".to_string());
             }
             // study a specific kosha
             study_kosha(&kosha_name, &repo, &our_canon, count)
         }
         None => {
             if aliases.is_empty() {
-                println!("no koshas configured in .vyasa/kosha.md");
+                println!("no koshas configured in .vyasa/kosha.json");
                 return Ok(());
             }
             // show stats for all koshas
@@ -54,20 +54,14 @@ fn study_kosha(
     count: usize,
 ) -> Result<(), String> {
     // check if alias exists
-    let alias = repo
-        .kosha_config
-        .aliases
-        .iter()
-        .find(|a| a.alias == kosha_name);
-
-    if alias.is_none() {
+    if !repo.kosha_config.aliases.contains_key(kosha_name) {
         return Err(format!(
             "kosha '{}' not found. configured koshas: {}",
             kosha_name,
             repo.kosha_config
                 .aliases
-                .iter()
-                .map(|a| a.alias.as_str())
+                .keys()
+                .cloned()
                 .collect::<Vec<_>>()
                 .join(", ")
         ));
@@ -75,7 +69,7 @@ fn study_kosha(
 
     // resolve and load the kosha's canon
     let resolved = repo.resolve_kosha_path(kosha_name).ok_or(format!(
-        "could not resolve kosha '{}' - check kosha.local.md",
+        "could not resolve kosha '{}' - check kosha.json",
         kosha_name
     ))?;
 
@@ -148,8 +142,7 @@ fn study_kosha(
 fn show_all_stats(repo: &Repository, our_canon: &Canon) -> Result<(), String> {
     let mut results: Vec<(String, usize, Option<String>)> = Vec::new();
 
-    for alias in &repo.kosha_config.aliases {
-        let kosha_name = &alias.alias;
+    for kosha_name in repo.kosha_config.aliases.keys() {
 
         // try to resolve and load the kosha's canon
         let count = match repo.resolve_kosha_path(kosha_name) {
@@ -183,7 +176,7 @@ fn show_all_stats(repo: &Repository, our_canon: &Canon) -> Result<(), String> {
                 results.push((
                     kosha_name.clone(),
                     0,
-                    Some("not resolved (check kosha.local.md)".to_string()),
+                    Some("not resolved (check kosha.json)".to_string()),
                 ));
                 continue;
             }

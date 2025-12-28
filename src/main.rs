@@ -9,7 +9,6 @@ mod snapshot;
 mod stats;
 mod status;
 mod study;
-mod values;
 
 #[derive(Parser)]
 #[command(name = "vyasa")]
@@ -67,18 +66,6 @@ enum Commands {
         #[arg(long, default_value = "10")]
         buckets: usize,
     },
-    /// Query placeholder values from template mantras
-    Values {
-        /// Filter by mantra anusrit, e.g. --mantra="[user: {name}]"
-        #[arg(long, short)]
-        mantra: Option<String>,
-        /// Filter by placeholder key name
-        #[arg(long, short)]
-        key: Option<String>,
-        /// Path to file, folder, or glob pattern (defaults to current directory)
-        #[arg(default_value = ".")]
-        path: String,
-    },
     /// Study mantras from configured koshas
     Study {
         /// Kosha alias to study (if omitted, shows stats for all koshas)
@@ -109,7 +96,6 @@ fn main() {
             path,
         } => list::run(&path, filter, pending),
         Commands::Stats { path, buckets } => stats::run(&path, buckets),
-        Commands::Values { mantra, key, path } => values::run(&path, mantra, key),
         Commands::Study { kosha, count, path } => study::run(&path, kosha, count),
     };
 

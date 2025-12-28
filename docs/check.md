@@ -15,8 +15,7 @@
 > if any rule is violated, exit code 1 is returned - suitable for CI pipelines.
 
 > **^vyasa check reports undefined anusrits^** - every `_| anusrit |_` must match a defined
-> mantra, either exactly or through template matching. undefined anusrits are
-> reported as errors.
+> mantra exactly. undefined anusrits are reported as errors.
 
 > **^check exits with code 0 when all mantras have bhasyas^** - when every mantra has
 > a bhasya and all anusrits are valid, check prints a success message and

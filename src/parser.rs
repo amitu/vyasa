@@ -1,4 +1,3 @@
-use regex::Regex;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -10,7 +9,6 @@ pub struct Mantra {
     pub file: String,
     pub line: usize,
     pub has_explanation: bool,
-    pub is_template: bool,
 }
 
 /// A bhasya is a mula mantra (मूल मंत्र) with its commentary (the complete teaching unit)
@@ -21,7 +19,6 @@ pub struct Bhasya {
     pub commentary: String,
     pub file: String,
     pub line: usize,
-    pub is_template: bool,
 }
 
 // `^mantra^@kosha` provides commentary on external mantra
@@ -39,29 +36,16 @@ pub struct Anusrit {
     pub mantra_text: String,
     pub file: String,
     pub line: usize,
-    pub matched_template: Option<String>,
     /// `_| mantra |_`@kosha-name`` for external anusrits
     pub kosha: Option<String>,
 }
 
-// _| kosha-alias {kosha-alias}: {kosha-value} |_
-#[derive(Debug, Clone)]
-pub struct KoshaAlias {
-    pub alias: String,
-    pub value: String,
-}
-
-// _| kosha-dir {kosha-alias}: {folder-name} |_
-#[derive(Debug, Clone)]
-pub struct KoshaDir {
-    pub alias: String,
-    pub folder: String,
-}
-
+/// Kosha configuration loaded from .vyasa/kosha.json
+/// Maps alias names to paths (local folders, git repos, or fastn-kosha)
 #[derive(Debug, Default)]
 pub struct KoshaConfig {
-    pub aliases: Vec<KoshaAlias>,
-    pub local_dirs: Vec<KoshaDir>,
+    /// alias -> path mapping (merged from kosha.json and kosha.local.json)
+    pub aliases: HashMap<String, String>,
 }
 
 #[derive(Debug, Default)]
@@ -120,9 +104,6 @@ impl Repository {
             parse_file(&content, &file_name, &mut repo);
         }
 
-        // match references to template mantras
-        resolve_template_references(&mut repo);
-
         // determine which mantras have explanations (commentary in same paragraph)
         mark_explained_mantras(&mut repo);
 
@@ -130,30 +111,13 @@ impl Repository {
     }
 
     pub fn resolve_kosha_path(&self, alias: &str) -> Option<String> {
-        // first check local overrides
-        for local in &self.kosha_config.local_dirs {
-            if local.alias == alias {
-                return Some(local.folder.clone());
-            }
-        }
-        // then check aliases
-        for kosha in &self.kosha_config.aliases {
-            if kosha.alias == alias {
-                return Some(kosha.value.clone());
-            }
-        }
-        None
+        self.kosha_config.aliases.get(alias).cloned()
     }
 
     pub fn unreferenced_mantras(&self) -> Vec<&Mantra> {
         self.mantras
             .values()
-            .filter(|m| {
-                !self.anusrits.iter().any(|r| {
-                    r.mantra_text == m.text
-                        || r.matched_template.as_ref() == Some(&m.text)
-                })
-            })
+            .filter(|m| !self.anusrits.iter().any(|r| r.mantra_text == m.text))
             .collect()
     }
 
@@ -167,52 +131,10 @@ impl Repository {
     pub fn anusrit_counts(&self) -> HashMap<String, usize> {
         let mut counts: HashMap<String, usize> = HashMap::new();
         for anusrit in &self.anusrits {
-            // count against template if matched, otherwise the literal text
-            let key = anusrit
-                .matched_template
-                .as_ref()
-                .unwrap_or(&anusrit.mantra_text);
-            *counts.entry(key.clone()).or_insert(0) += 1;
+            *counts.entry(anusrit.mantra_text.clone()).or_insert(0) += 1;
         }
         counts
     }
-
-    pub fn extract_placeholder_values(&self) -> Vec<PlaceholderValue> {
-        let mut values = Vec::new();
-
-        for anusrit in &self.anusrits {
-            if let Some(template_text) = &anusrit.matched_template {
-                if let Some(mantra) = self.mantras.get(template_text) {
-                    if mantra.is_template {
-                        let extracted = extract_values_from_reference(
-                            template_text,
-                            &anusrit.mantra_text,
-                        );
-                        for (key, value) in extracted {
-                            values.push(PlaceholderValue {
-                                template: template_text.clone(),
-                                key,
-                                value,
-                                file: anusrit.file.clone(),
-                                line: anusrit.line,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-
-        values
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct PlaceholderValue {
-    pub template: String,
-    pub key: String,
-    pub value: String,
-    pub file: String,
-    pub line: usize,
 }
 
 // _| mantras should use inline syntax not block because they are meant to be short |_
@@ -431,7 +353,6 @@ fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, parag
                         }
                     } else {
                         // local mantra definition
-                        let is_template = mantra_text.contains('{') && mantra_text.contains('}');
                         let commentary = extract_paragraph_commentary(paragraph, &mantra_text);
                         let has_explanation = !commentary.is_empty();
 
@@ -440,7 +361,6 @@ fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, parag
                             commentary,
                             file: file_name.to_string(),
                             line: line_num,
-                            is_template,
                         });
 
                         repo.mantras.entry(mantra_text.clone()).or_insert(Mantra {
@@ -448,7 +368,6 @@ fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, parag
                             file: file_name.to_string(),
                             line: line_num,
                             has_explanation,
-                            is_template,
                         });
                     }
                 }
@@ -495,7 +414,6 @@ fn parse_line_with_paragraph(line: &str, file_name: &str, line_num: usize, parag
                     mantra_text: ref_text,
                     file: file_name.to_string(),
                     line: line_num,
-                    matched_template: None,
                     kosha,
                 });
             }
@@ -573,186 +491,6 @@ fn mark_explained_mantras(_repo: &mut Repository) {
     // The has_explanation field is already set in parse_line.
 }
 
-fn resolve_template_references(repo: &mut Repository) {
-    let templates: Vec<_> = repo
-        .mantras
-        .values()
-        .filter(|m| m.is_template)
-        .map(|m| (m.text.clone(), build_template_regex(&m.text)))
-        .collect();
-
-    for anusrit in &mut repo.anusrits {
-        // skip if already an exact match
-        if repo.mantras.contains_key(&anusrit.mantra_text) {
-            continue;
-        }
-
-        // try to match against templates
-        for (template_text, template_regex) in &templates {
-            if let Some(tr) = template_regex {
-                if matches_template(tr, &anusrit.mantra_text) {
-                    anusrit.matched_template = Some(template_text.clone());
-                    break;
-                }
-            }
-        }
-    }
-}
-
-// _| template placeholders can include example values as {name=example} |_
-fn extract_placeholder_name(placeholder_content: &str) -> &str {
-    if let Some(eq_pos) = placeholder_content.find('=') {
-        &placeholder_content[..eq_pos]
-    } else {
-        placeholder_content
-    }
-}
-
-fn extract_example_value(placeholder_content: &str) -> Option<&str> {
-    if let Some(eq_pos) = placeholder_content.find('=') {
-        Some(&placeholder_content[eq_pos + 1..])
-    } else {
-        None
-    }
-}
-
-#[derive(Debug, Clone)]
-struct CaptureInfo {
-    placeholder_idx: usize,
-    full_placeholder: String,
-}
-
-#[derive(Debug)]
-struct TemplateRegex {
-    regex: Regex,
-    captures: Vec<CaptureInfo>,
-}
-
-fn build_template_regex(template: &str) -> Option<TemplateRegex> {
-    let mut placeholders: Vec<(usize, usize, String, Option<String>)> = Vec::new();
-
-    for (start, _) in template.match_indices('{') {
-        if let Some(end_offset) = template[start..].find('}') {
-            let end = start + end_offset;
-            let content = &template[start + 1..end];
-            let full_placeholder = template[start..=end].to_string();
-            let example = extract_example_value(content).map(|s| s.to_string());
-            placeholders.push((start, end, full_placeholder, example));
-        }
-    }
-
-    let mut captures: Vec<(usize, usize, usize, String)> = Vec::new();
-
-    for (idx, (start, end, full_placeholder, _)) in placeholders.iter().enumerate() {
-        captures.push((*start, *end, idx, full_placeholder.clone()));
-    }
-
-    for (placeholder_idx, (_, _, full_placeholder, example)) in placeholders.iter().enumerate() {
-        if let Some(ex) = example {
-            for (pos, _) in template.match_indices(ex.as_str()) {
-                let inside_placeholder = placeholders.iter().any(|(s, e, _, _)| pos >= *s && pos <= *e);
-                if !inside_placeholder {
-                    captures.push((pos, pos + ex.len() - 1, placeholder_idx, full_placeholder.clone()));
-                }
-            }
-        }
-    }
-
-    captures.sort_by_key(|(start, _, _, _)| *start);
-
-    let mut pattern = String::from("^");
-    let mut last_end = 0;
-    let mut capture_info: Vec<CaptureInfo> = Vec::new();
-
-    for (start, end, placeholder_idx, full_placeholder) in &captures {
-        if *start > last_end {
-            pattern.push_str(&regex::escape(&template[last_end..*start]));
-        }
-
-        pattern.push_str(&format!("(.+?|{})", regex::escape(full_placeholder)));
-        capture_info.push(CaptureInfo {
-            placeholder_idx: *placeholder_idx,
-            full_placeholder: full_placeholder.clone(),
-        });
-
-        last_end = end + 1;
-    }
-
-    if last_end < template.len() {
-        pattern.push_str(&regex::escape(&template[last_end..]));
-    }
-    pattern.push('$');
-
-    Regex::new(&pattern).ok().map(|regex| TemplateRegex { regex, captures: capture_info })
-}
-
-fn matches_template(template_regex: &TemplateRegex, reference: &str) -> bool {
-    if let Some(caps) = template_regex.regex.captures(reference) {
-        let mut placeholder_values: std::collections::HashMap<usize, &str> = std::collections::HashMap::new();
-
-        for (i, info) in template_regex.captures.iter().enumerate() {
-            if let Some(m) = caps.get(i + 1) {
-                let value = m.as_str();
-                if value == info.full_placeholder {
-                    continue;
-                }
-                if let Some(&existing) = placeholder_values.get(&info.placeholder_idx) {
-                    if existing != value {
-                        return false;
-                    }
-                } else {
-                    placeholder_values.insert(info.placeholder_idx, value);
-                }
-            }
-        }
-        true
-    } else {
-        false
-    }
-}
-
-fn extract_values_from_reference(template: &str, reference: &str) -> Vec<(String, String)> {
-    let mut results = Vec::new();
-
-    let Some(template_regex) = build_template_regex(template) else {
-        return results;
-    };
-
-    let mut placeholder_info: Vec<(String, String)> = Vec::new();
-    for (start, _) in template.match_indices('{') {
-        if let Some(end) = template[start..].find('}') {
-            let end = start + end;
-            let full_content = &template[start + 1..end];
-            let var_name = extract_placeholder_name(full_content);
-            placeholder_info.push((var_name.to_string(), full_content.to_string()));
-        }
-    }
-
-    if let Some(caps) = template_regex.regex.captures(reference) {
-        let mut extracted: std::collections::HashSet<usize> = std::collections::HashSet::new();
-
-        for (i, info) in template_regex.captures.iter().enumerate() {
-            if extracted.contains(&info.placeholder_idx) {
-                continue;
-            }
-
-            if let Some(m) = caps.get(i + 1) {
-                let value = m.as_str().to_string();
-                if value == info.full_placeholder {
-                    continue;
-                }
-
-                if let Some((var_name, _)) = placeholder_info.get(info.placeholder_idx) {
-                    results.push((var_name.clone(), value));
-                    extracted.insert(info.placeholder_idx);
-                }
-            }
-        }
-    }
-
-    results
-}
-
 // _| vyasa check checks all non human meant files |_
 // human-meant: configs, data files, binaries - skip these
 // source code and docs: scan for mantras
@@ -797,49 +535,24 @@ pub fn find_repo_root(path: &Path) -> Option<std::path::PathBuf> {
 fn load_kosha_config(repo_root: &Path) -> KoshaConfig {
     let mut config = KoshaConfig::default();
 
-    // _| .vyasa/kosha.md contains kosha configuration |_
-    let kosha_file = repo_root.join(".vyasa/kosha.md");
+    // load .vyasa/kosha.json - main kosha aliases
+    let kosha_file = repo_root.join(".vyasa/kosha.json");
     if let Ok(content) = fs::read_to_string(&kosha_file) {
-        parse_kosha_aliases(&content, &mut config);
+        if let Ok(aliases) = serde_json::from_str::<HashMap<String, String>>(&content) {
+            config.aliases = aliases;
+        }
     }
 
-    // _| .vyasa/kosha.local.md stores local folder overrides |_
-    let local_file = repo_root.join(".vyasa/kosha.local.md");
+    // load .vyasa/kosha.local.json - local overrides (gitignored)
+    let local_file = repo_root.join(".vyasa/kosha.local.json");
     if let Ok(content) = fs::read_to_string(&local_file) {
-        parse_kosha_local(&content, &mut config);
+        if let Ok(local_aliases) = serde_json::from_str::<HashMap<String, String>>(&content) {
+            // local overrides main config
+            for (alias, path) in local_aliases {
+                config.aliases.insert(alias, path);
+            }
+        }
     }
 
     config
-}
-
-fn parse_kosha_aliases(content: &str, config: &mut KoshaConfig) {
-    // look for _kosha-alias {alias}: {value}_ pattern
-    let alias_pattern = Regex::new(r"_kosha-alias\s+([^:]+):\s*([^_]+)_").ok();
-
-    if let Some(re) = alias_pattern {
-        for cap in re.captures_iter(content) {
-            if let (Some(alias), Some(value)) = (cap.get(1), cap.get(2)) {
-                config.aliases.push(KoshaAlias {
-                    alias: alias.as_str().trim().to_string(),
-                    value: value.as_str().trim().to_string(),
-                });
-            }
-        }
-    }
-}
-
-fn parse_kosha_local(content: &str, config: &mut KoshaConfig) {
-    // look for _kosha-dir {alias}: {folder}_ pattern
-    let dir_pattern = Regex::new(r"_kosha-dir\s+([^:]+):\s*([^_]+)_").ok();
-
-    if let Some(re) = dir_pattern {
-        for cap in re.captures_iter(content) {
-            if let (Some(alias), Some(folder)) = (cap.get(1), cap.get(2)) {
-                config.local_dirs.push(KoshaDir {
-                    alias: alias.as_str().trim().to_string(),
-                    folder: folder.as_str().trim().to_string(),
-                });
-            }
-        }
-    }
 }

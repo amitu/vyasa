@@ -95,10 +95,7 @@ pub fn run(path: &Path, mantra_text: &str, show_references: bool) -> Result<(), 
         let refs: Vec<_> = repo
             .anusrits
             .iter()
-            .filter(|r| {
-                r.mantra_text == mantra_text
-                    || r.matched_template.as_ref() == Some(&mantra_text.to_string())
-            })
+            .filter(|r| r.mantra_text == mantra_text)
             .collect();
 
         if refs.is_empty() {
