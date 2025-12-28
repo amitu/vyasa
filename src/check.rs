@@ -40,11 +40,14 @@ pub fn run(path: &Path) -> Result<(), String> {
             "found {} duplicate bhasyas:\n",
             duplicate_bhasyas.len()
         );
-        for (file, line, text, first_file, first_line) in &duplicate_bhasyas {
-            println!("  {}:{}", file, line);
-            println!("    ^{}^", truncate(text, 60));
-            println!("    first defined at {}:{}", first_file, first_line);
-            println!("    use `shastra: {}` to quote\n", shastra_name);
+        for (mantra, commentary, locations) in &duplicate_bhasyas {
+            println!("  > **^{}^**", mantra);
+            println!("  > {}\n", truncate(commentary, 70));
+            println!("  found at:");
+            for (file, line) in locations {
+                println!("    - {}:{}", file, line);
+            }
+            println!("\n  use `shastra: {}` to quote from canonical location\n", shastra_name);
         }
         error_counts.push(format!("{} duplicate bhasyas", duplicate_bhasyas.len()));
     }
@@ -312,10 +315,10 @@ fn check_shastra_quotes(repo: &Repository) -> (Vec<String>, Vec<String>) {
 }
 
 /// Check for duplicate bhasyas - same mantra + commentary must be unique
-fn check_duplicate_bhasyas(repo: &Repository) -> Vec<(String, usize, String, String, usize)> {
-    let mut duplicates = Vec::new();
-    // key: (mantra_text, commentary) -> (file, line)
-    let mut seen: HashMap<(&str, &str), (&str, usize)> = HashMap::new();
+/// Returns: Vec<(mantra_text, commentary, locations)>
+fn check_duplicate_bhasyas(repo: &Repository) -> Vec<(String, String, Vec<(String, usize)>)> {
+    // key: (mantra_text, commentary) -> list of (file, line)
+    let mut occurrences: HashMap<(&str, &str), Vec<(&str, usize)>> = HashMap::new();
 
     for bhasya in &repo.bhasyas {
         // skip uddhrit (quoted from other shastras) - duplicates allowed
@@ -324,20 +327,24 @@ fn check_duplicate_bhasyas(repo: &Repository) -> Vec<(String, usize, String, Str
         }
 
         let key = (bhasya.mantra_text.as_str(), bhasya.commentary.as_str());
-        if let Some(&(first_file, first_line)) = seen.get(&key) {
-            duplicates.push((
-                bhasya.file.clone(),
-                bhasya.line,
-                bhasya.mantra_text.clone(),
-                first_file.to_string(),
-                first_line,
-            ));
-        } else {
-            seen.insert(key, (&bhasya.file, bhasya.line));
-        }
+        occurrences
+            .entry(key)
+            .or_default()
+            .push((&bhasya.file, bhasya.line));
     }
 
-    duplicates
+    // collect only those with more than one occurrence
+    occurrences
+        .into_iter()
+        .filter(|(_, locs)| locs.len() > 1)
+        .map(|((mantra, commentary), locs)| {
+            (
+                mantra.to_string(),
+                commentary.to_string(),
+                locs.into_iter().map(|(f, l)| (f.to_string(), l)).collect(),
+            )
+        })
+        .collect()
 }
 
 // _| vyasa check reports undefined anusrits |_
