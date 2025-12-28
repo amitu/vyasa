@@ -28,7 +28,7 @@ pub struct Bhasya {
     pub shastra: Option<String>,
 }
 
-/// An anusrit (अनुसृत) is a mantra reference using _| mantra |_ syntax
+/// An anusrit (अनुसृत) is a mantra reference using `_| mantra text |_` syntax
 #[derive(Debug, Clone)]
 pub struct Anusrit {
     pub mantra_text: String,
@@ -166,6 +166,35 @@ struct Paragraph {
     shastra: Option<String>,
 }
 
+/// Strip common comment prefixes from a line, returning the content after the prefix
+/// Returns (stripped_content, comment_prefix) or None if no comment prefix found
+fn strip_comment_prefix(line: &str) -> Option<(&str, &str)> {
+    let trimmed = line.trim_start();
+
+    // try each comment prefix in order of specificity
+    let prefixes = ["//", "#", "--", ";", "%"];
+
+    for prefix in prefixes {
+        if let Some(rest) = trimmed.strip_prefix(prefix) {
+            // calculate where the prefix starts in original line
+            let prefix_start = line.len() - trimmed.len();
+            let prefix_end = prefix_start + prefix.len();
+            return Some((rest, &line[..prefix_end]));
+        }
+    }
+
+    None
+}
+
+/// Check if a line is a comment-only line (just the comment prefix, maybe with whitespace)
+fn is_comment_only_line(line: &str) -> bool {
+    if let Some((rest, _)) = strip_comment_prefix(line) {
+        rest.trim().is_empty()
+    } else {
+        false
+    }
+}
+
 fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
     let mut paragraphs = Vec::new();
     let mut current_lines: Vec<(usize, String)> = Vec::new();
@@ -174,6 +203,7 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
     let mut is_deprecated = false;
     let mut current_shastra: Option<String> = None;
     let mut pending_shastra: Option<String> = None;
+    let mut current_comment_prefix: Option<String> = None;
 
     for (i, line) in lines.iter().enumerate() {
         let line_num = i + 1;
@@ -191,24 +221,32 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                 });
                 in_quote_block = false;
                 is_deprecated = false;
+                current_comment_prefix = None;
             }
             pending_shastra = None;
             continue;
         }
 
-        let trimmed = line.trim_start();
+        // try to strip comment prefix for source code files
+        let (content, comment_prefix) = if let Some((rest, prefix)) = strip_comment_prefix(line) {
+            (rest.trim_start(), Some(prefix))
+        } else {
+            (line.trim_start(), None)
+        };
+
         // check for >> (deprecation) vs > (normal quote)
-        let is_deprecated_line = trimmed.starts_with(">>");
-        let is_quote_line = trimmed.starts_with('>');
-        let is_empty = line.trim().is_empty();
+        let is_deprecated_line = content.starts_with(">>");
+        let is_quote_line = content.starts_with('>');
+        let is_empty = line.trim().is_empty() || is_comment_only_line(line);
 
         // check for `shastra: name` pattern (must be alone on its line)
         if !in_quote_block && !is_quote_line && !is_empty {
-            if let Some(shastra_name) = trimmed.strip_prefix("shastra:") {
+            if let Some(shastra_name) = content.strip_prefix("shastra:") {
                 let shastra_name = shastra_name.trim();
                 if !shastra_name.is_empty() {
                     // this is a shastra attribution line - remember it for next quote block
                     pending_shastra = Some(shastra_name.to_string());
+                    current_comment_prefix = comment_prefix.map(|s| s.to_string());
                     continue; // don't include this line in any paragraph
                 }
             }
@@ -216,13 +254,24 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
 
         if in_quote_block {
             // inside a quote block - continue until non-quote, non-empty line
-            if is_quote_line {
+            // for comment blocks, also check the comment prefix matches
+            let same_comment_style = match (&current_comment_prefix, comment_prefix) {
+                (Some(current), Some(prefix)) => current == prefix,
+                (None, None) => true,
+                _ => false,
+            };
+
+            if is_quote_line && same_comment_style {
                 current_lines.push((line_num, line.to_string()));
-            } else if is_empty {
+            } else if is_empty && same_comment_style {
                 // empty line inside quote block - include it to preserve structure
-                current_lines.push((line_num, ">".to_string()));
+                if let Some(ref prefix) = current_comment_prefix {
+                    current_lines.push((line_num, format!("{} >", prefix)));
+                } else {
+                    current_lines.push((line_num, ">".to_string()));
+                }
             } else {
-                // non-quote line ends the quote block
+                // non-quote line or different comment style ends the quote block
                 let text = current_lines.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
                 paragraphs.push(Paragraph {
                     text,
@@ -233,9 +282,12 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                 });
                 in_quote_block = false;
                 is_deprecated = false;
-                // start new paragraph with this line
-                start_line = line_num;
-                current_lines.push((line_num, line.to_string()));
+                current_comment_prefix = None;
+                // start new paragraph with this line if not empty
+                if !is_empty {
+                    start_line = line_num;
+                    current_lines.push((line_num, line.to_string()));
+                }
             }
         } else {
             // not in quote block
@@ -253,6 +305,7 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                 }
                 // empty line also clears pending shastra
                 pending_shastra = None;
+                current_comment_prefix = None;
             } else if is_quote_line {
                 // starting a quote block
                 if !current_lines.is_empty() {
@@ -269,6 +322,7 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                 in_quote_block = true;
                 is_deprecated = is_deprecated_line;
                 current_shastra = pending_shastra.take();
+                current_comment_prefix = comment_prefix.map(|s| s.to_string());
                 start_line = line_num;
                 current_lines.push((line_num, line.to_string()));
             } else {
@@ -279,6 +333,7 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                 current_lines.push((line_num, line.to_string()));
                 // regular line clears pending shastra
                 pending_shastra = None;
+                current_comment_prefix = None;
             }
         }
     }
@@ -298,30 +353,50 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
     paragraphs
 }
 
+/// Strip comment prefix and quote markers from a line
+fn strip_comment_and_quote(line: &str) -> &str {
+    // first strip comment prefix if present
+    let after_comment = if let Some((rest, _)) = strip_comment_prefix(line) {
+        rest.trim_start()
+    } else {
+        line.trim_start()
+    };
+
+    // then strip >> or > quote prefix
+    after_comment.strip_prefix(">>")
+        .unwrap_or_else(|| after_comment.strip_prefix('>').unwrap_or(after_comment))
+        .trim_start()
+}
+
+/// Check if paragraph text starts with a quote marker (after stripping comment prefix)
+fn is_quote_paragraph(text: &str) -> bool {
+    if let Some(first_line) = text.lines().next() {
+        let content = if let Some((rest, _)) = strip_comment_prefix(first_line) {
+            rest.trim_start()
+        } else {
+            first_line.trim_start()
+        };
+        content.starts_with('>')
+    } else {
+        false
+    }
+}
+
 fn parse_paragraph(para: &Paragraph, file_name: &str, repo: &mut Repository) {
     // check if this is a quote block (bhasyas require quote blocks)
-    let is_quote_block = para.text.trim_start().starts_with('>');
+    let is_quote_block = is_quote_paragraph(&para.text);
 
     if is_quote_block {
-        // strip > or >> prefix from paragraph text for commentary extraction
+        // strip comment prefix and > or >> from paragraph text for commentary extraction
         let unquoted_para: String = para.text
             .lines()
-            .map(|l| {
-                let trimmed = l.trim_start();
-                // strip >> or > prefix
-                let without_prefix = trimmed.strip_prefix(">>")
-                    .unwrap_or_else(|| trimmed.strip_prefix('>').unwrap_or(trimmed));
-                without_prefix.trim_start()
-            })
+            .map(strip_comment_and_quote)
             .collect::<Vec<_>>()
             .join("\n");
 
-        // parse each line (strip > or >> prefix) for mantras and references
+        // parse each line (strip comment prefix and > or >> prefix) for mantras and references
         for (line_num, line) in &para.lines {
-            let trimmed = line.trim_start();
-            let unquoted_line = trimmed.strip_prefix(">>")
-                .unwrap_or_else(|| trimmed.strip_prefix('>').unwrap_or(trimmed))
-                .trim_start();
+            let unquoted_line = strip_comment_and_quote(line);
             parse_line_with_paragraph(
                 unquoted_line,
                 file_name,
@@ -336,7 +411,13 @@ fn parse_paragraph(para: &Paragraph, file_name: &str, repo: &mut Repository) {
     } else {
         // not a quote block - only parse for references, not bhasyas
         for (line_num, line) in &para.lines {
-            parse_line_with_paragraph(line, file_name, *line_num, &para.text, repo, false, false, None);
+            // still strip comment prefix for anusrit detection in code
+            let content = if let Some((rest, _)) = strip_comment_prefix(line) {
+                rest
+            } else {
+                line.as_str()
+            };
+            parse_line_with_paragraph(content, file_name, *line_num, &para.text, repo, false, false, None);
         }
     }
 }

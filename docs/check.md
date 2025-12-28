@@ -6,24 +6,59 @@
 > primary validation tool. it scans all vyasa files and ensures
 > _| every mantra needs at least one bhasya |_.
 
+> **^vyasa check exits with non zero exit code if any rule is violated^** - check
+> validates multiple rules. if any rule is violated, exit code 1 is returned -
+> suitable for CI pipelines.
+
+## validation rules
+
+### bhasya validation
+
 > **^check reports unexplained mantras with file and line^** - when a mantra lacks
 > bhasya, vyasa check outputs the file path and line number, plus a truncated
 > preview. this helps you locate and fix issues quickly.
 
-> **^vyasa check exits with non zero exit code if any rule is violated^** - check
-> validates multiple rules: bhasyas, anusrit validity, shastra config, and shastra quotes.
-> if any rule is violated, exit code 1 is returned - suitable for CI pipelines.
+### anusrit validation
 
-> **^vyasa check reports undefined anusrits^** - every `_| anusrit |_` must match a defined
-> mantra exactly. undefined anusrits are reported as errors.
+> **^vyasa check reports undefined anusrits^** - every `_| anusrit |_` must match
+> a defined mantra exactly. undefined anusrits are reported as errors.
 
-> **^check exits with code 0 when all mantras have bhasyas^** - when every mantra has
+> **^anusrits in source code are validated^** - mantras referenced in code comments
+> using `_| mantra |_` syntax are checked just like those in markdown files.
+
+### shastra validation
+
+> **^check validates shastra references^** - for anusrits with `@shastra-name`:
+> - the alias must exist in shastra.json
+> - the path must exist on disk
+
+### uddhrit validation
+
+> **^check validates quoted bhasyas^** - when you quote a bhasya from another shastra
+> using the `shastra: name` prefix:
+> - the shastra alias must be defined
+> - the mantra must exist in that shastra
+> - warning if the mantra is deprecated (tyakta) in source
+
+> **^deprecated uddhrit triggers warning not error^** - quoting a deprecated mantra
+> shows a warning but doesn't fail the check. this gives you time to update.
+
+## success and failure
+
+> **^check exits with code 0 when all rules pass^** - when every mantra has
 > a bhasya and all anusrits are valid, check prints a success message and
 > exits cleanly, showing the total count of mantras checked.
 
 > **^check accepts a path argument^** - by default, vyasa check scans the current
-> directory. pass a path to check a specific folder or file: `vyasa check ./docs`
+> directory. pass a path to check a specific folder: `vyasa check ./docs`
 
-> **^check validates shastra quotes^** - when you quote a bhasya from another shastra
-> using the `shastra: name` prefix, check verifies the mantra exists in that shastra.
-> if the quoted mantra is deprecated in the source, a warning is shown.
+## using in CI
+
+```yaml
+# GitHub Actions example
+- name: Check mantras
+  run: vyasa check
+```
+
+> **^vyasa check is designed for CI^** - non-zero exit on failure makes it easy
+> to gate deployments on knowledge consistency.

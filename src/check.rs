@@ -41,7 +41,7 @@ pub fn run(path: &Path) -> Result<(), String> {
         error_counts.push(format!("{} undefined anusrits", undefined_refs.len()));
     }
 
-    // _| shastra check verifies all external shastra anusrits |_
+    // check external shastra anusrits
     let shastra_anusrit_errors = check_shastra_anusrits(&repo);
     if !shastra_anusrit_errors.is_empty() {
         has_errors = true;
@@ -82,7 +82,7 @@ pub fn run(path: &Path) -> Result<(), String> {
     }
 }
 
-// _| shastra check verifies all external shastra anusrits |_
+/// Check external shastra anusrits have valid aliases and paths
 fn check_shastra_anusrits(repo: &Repository) -> Vec<String> {
     let mut errors = Vec::new();
 

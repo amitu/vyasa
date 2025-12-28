@@ -6,17 +6,38 @@ pub fn run(path: &Path, buckets: usize) -> Result<(), String> {
     let anusrit_counts = repo.anusrit_counts();
 
     let total_mantras = repo.mantras.len();
-    let total_bhasyas = repo.bhasyas.len();
     let total_anusrits = repo.anusrits.len();
     let unreferenced = repo.unreferenced_mantras().len();
+
+    // count bhasya types
+    let mut bhasya_count = 0;
+    let mut uddhrit_count = 0;
+    let mut tyakta_count = 0;
+
+    for bhasya in &repo.bhasyas {
+        if bhasya.is_deprecated {
+            tyakta_count += 1;
+        } else if bhasya.shastra.is_some() {
+            uddhrit_count += 1;
+        } else {
+            bhasya_count += 1;
+        }
+    }
 
     println!("vyasa repository stats");
     println!("======================\n");
 
+    // mantras and anusrits (definitions and usages)
     println!("mantras:      {}", total_mantras);
-    println!("bhasyas:      {}", total_bhasyas);
     println!("anusrits:     {}", total_anusrits);
     println!("unreferenced: {}", unreferenced);
+
+    println!();
+
+    // bhasyas (commentaries)
+    println!("bhasyas:      {}", bhasya_count);
+    println!("uddhrit:      {}", uddhrit_count);
+    println!("tyakta:       {}", tyakta_count);
 
     if total_mantras == 0 {
         return Ok(());
@@ -110,9 +131,9 @@ fn print_histogram(
         };
         let bar: String = "█".repeat(bar_len);
         if start == end {
-            println!("  {:>3}  anusrits: {:>4} {}", start, count, bar);
+            println!("  {:>3}: {:>4} {}", start, count, bar);
         } else {
-            println!("  {:>3}-{:<3} anusrits: {:>4} {}", start, end, count, bar);
+            println!("  {:>3}-{:<3}: {:>4} {}", start, end, count, bar);
         }
     }
 }
