@@ -71,6 +71,16 @@
 > from a shastra, you cannot also uddhrit the same bhasya from that shastra.
 > once you refute knowledge, you must reject it consistently everywhere.
 
+### unresolved conflict validation
+
+> **^conflicts between followed shastras must be resolved^** - if shastra X
+> khandits a bhasya and shastra Y uddhrits the same bhasya, you must take a
+> position by adding your own `khandita:` or `shastra:` for that bhasya.
+
+> **^unresolved conflicts are errors^** - vyasa will not let you silently
+> inherit contradictory positions. you must explicitly choose which shastra
+> you agree with.
+
 ## using in CI
 
 ```yaml

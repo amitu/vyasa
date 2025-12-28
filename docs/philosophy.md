@@ -60,3 +60,12 @@
 > **^tombstones can eventually be removed^** - once enough time has passed and the
 > correction is widely known, even the tyakta tombstone can be removed from the
 > original shastra. or it can remain forever as a historical record of a failed idea.
+
+> **^conflicts between shastras must be resolved^** - if you follow two shastras
+> and one khandits a bhasya while the other uddhrits it, you cannot silently
+> inherit both positions. you must explicitly take a side by adding your own
+> khandita or uddhrit.
+
+> **^no implicit positions on disputed knowledge^** - vyasa forces you to be
+> explicit about disputed knowledge. you cannot hide behind "I just follow X and Y"
+> when X and Y disagree. your shastra must state its position.

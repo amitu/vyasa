@@ -125,6 +125,17 @@ pub fn run(path: &Path) -> Result<(), String> {
         error_counts.push(format!("{} khandita/uddhrit conflicts", conflict_errors.len()));
     }
 
+    // check for unresolved conflicts between shastras I follow
+    let unresolved_errors = check_unresolved_shastra_conflicts(&repo);
+    if !unresolved_errors.is_empty() {
+        has_errors = true;
+        println!("found {} unresolved shastra conflicts:\n", unresolved_errors.len());
+        for error in &unresolved_errors {
+            println!("  {}\n", error);
+        }
+        error_counts.push(format!("{} unresolved shastra conflicts", unresolved_errors.len()));
+    }
+
     if has_errors {
         Err(error_counts.join(", "))
     } else {
@@ -395,6 +406,93 @@ fn check_khandita(repo: &Repository) -> Vec<String> {
                 errors.push(format!(
                     "failed to parse shastra '{}' at {}",
                     shastra_name, shastra_path
+                ));
+            }
+        }
+    }
+
+    errors
+}
+
+/// Check for unresolved conflicts between shastras I follow
+/// If shastra X khandits a bhasya and shastra Y uddhrits it, I must take a position
+fn check_unresolved_shastra_conflicts(repo: &Repository) -> Vec<String> {
+    let mut errors = Vec::new();
+
+    // collect my positions: (mantra_text, source_shastra) -> "khandita" | "uddhrit"
+    let mut my_positions: HashMap<(String, String), &str> = HashMap::new();
+    for bhasya in &repo.bhasyas {
+        if let Some(ref shastra) = bhasya.khandita {
+            my_positions.insert((bhasya.mantra_text.clone(), shastra.clone()), "khandita");
+        }
+        if let Some(ref shastra) = bhasya.shastra {
+            my_positions.insert((bhasya.mantra_text.clone(), shastra.clone()), "uddhrit");
+        }
+    }
+
+    // load all shastras I follow and collect their positions
+    // key: (mantra_text, source_shastra) -> Vec<(follower_shastra, position)>
+    let mut external_positions: HashMap<(String, String), Vec<(String, &str)>> = HashMap::new();
+
+    for (shastra_name, shastra_path) in &repo.shastra_config.aliases {
+        let is_folder = shastra_path.starts_with('/')
+            || shastra_path.starts_with("./")
+            || shastra_path.starts_with("../");
+
+        if !is_folder {
+            continue;
+        }
+
+        let path = Path::new(shastra_path);
+        if !path.exists() {
+            continue;
+        }
+
+        if let Ok(external) = Repository::parse(path) {
+            for bhasya in &external.bhasyas {
+                if let Some(ref source) = bhasya.khandita {
+                    let key = (bhasya.mantra_text.clone(), source.clone());
+                    external_positions
+                        .entry(key)
+                        .or_default()
+                        .push((shastra_name.clone(), "khandita"));
+                }
+                if let Some(ref source) = bhasya.shastra {
+                    let key = (bhasya.mantra_text.clone(), source.clone());
+                    external_positions
+                        .entry(key)
+                        .or_default()
+                        .push((shastra_name.clone(), "uddhrit"));
+                }
+            }
+        }
+    }
+
+    // find conflicts: same (mantra, source) has both khandita and uddhrit
+    for (key, positions) in &external_positions {
+        let has_khandita = positions.iter().any(|(_, pos)| *pos == "khandita");
+        let has_uddhrit = positions.iter().any(|(_, pos)| *pos == "uddhrit");
+
+        if has_khandita && has_uddhrit {
+            // there's a conflict - check if I've resolved it
+            if !my_positions.contains_key(key) {
+                let khandita_by: Vec<_> = positions
+                    .iter()
+                    .filter(|(_, pos)| *pos == "khandita")
+                    .map(|(s, _)| s.as_str())
+                    .collect();
+                let uddhrit_by: Vec<_> = positions
+                    .iter()
+                    .filter(|(_, pos)| *pos == "uddhrit")
+                    .map(|(s, _)| s.as_str())
+                    .collect();
+
+                errors.push(format!(
+                    "unresolved conflict for ^{}^ from '{}': khandita by [{}], uddhrit by [{}] - add your own khandita: or shastra: to resolve",
+                    truncate(&key.0, 30),
+                    key.1,
+                    khandita_by.join(", "),
+                    uddhrit_by.join(", ")
                 ));
             }
         }
