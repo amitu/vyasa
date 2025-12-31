@@ -3,35 +3,49 @@ use std::fs;
 use std::path::Path;
 use walkdir::WalkDir;
 
-#[derive(Debug, Clone)]
-pub struct Mantra {
-    pub text: String,
+/// Information about a mantra in this repository
+#[derive(Debug, Clone, Default)]
+pub struct MantraInfo {
+    /// First definition location (for display)
     pub file: String,
     pub line: usize,
+    /// Whether this mantra has commentary
     pub has_explanation: bool,
+    /// Bhasya indices where this is a mula definition (**^mantra^**)
+    pub mula_bhasyas: Vec<usize>,
+    /// Bhasya indices where this is referenced inside bhasya (_| mantra |_)
+    pub anusrit_bhasyas: Vec<usize>,
 }
 
-/// A bhasya is a mula mantra (मूल मंत्र) with its commentary (the complete teaching unit)
-/// Mula mantra uses **^mantra^** syntax inside quote blocks
-/// - `> **^mantra^**` - creates a bhasya
-/// - `>> **^mantra^**` - deprecates an existing bhasya (tyakta)
-/// - `shastra: name\n> **^mantra^**` - quotes a bhasya from another shastra (uddhrit)
-/// - `khandita: name\n> **^mantra^**` - refutes a bhasya from another shastra
+/// The kind of bhasya - determines its semantic meaning
+#[derive(Debug, Clone, PartialEq)]
+pub enum BhasyaKind {
+    /// Regular bhasya - defines a mula mantra
+    Mula,
+    /// Quoting canonical mula-bhasya location (uddhrit उद्धृत) - same or other shastra
+    Uddhrit(String),
+    /// Refuting a shastra's bhasya (khandita खण्डित)
+    Khandita(String),
+    /// Deprecated bhasya (tyakta त्यक्त)
+    Tyakta,
+}
+
+/// A bhasya is a quote block (the teaching unit containing mantras and commentary)
+/// - `> **^mantra^**` - contains a mula mantra definition (Mula)
+/// - `shastra: name\n> ...` - quotes canonical location in a shastra (Uddhrit)
+/// - `khandita: name\n> ...` - refutes a shastra's bhasya (Khandita)
+/// - `tyakta:\n> ...` - deprecates this bhasya (Tyakta)
 #[derive(Debug, Clone)]
 pub struct Bhasya {
-    pub mantra_text: String,
-    pub commentary: String,
+    /// Original paragraph text (preserves structure with newlines)
+    pub paragraph: String,
     pub file: String,
     pub line: usize,
-    /// True if this bhasya is deprecated (uses >> instead of >)
-    pub is_deprecated: bool,
-    /// If set, this bhasya is quoting from another shastra (uddhrit)
-    pub shastra: Option<String>,
-    /// If set, this bhasya is refuting a bhasya from another shastra (khandita)
-    pub khandita: Option<String>,
+    /// The kind of bhasya (mula, uddhrit, khandita, or tyakta)
+    pub kind: BhasyaKind,
 }
 
-/// An anusrit (अनुसृत) is a mantra reference using `_| mantra text |_` syntax
+/// An anusrit (अनुसृत) is a mantra reference outside a bhasya using `_| mantra text |_` syntax
 #[derive(Debug, Clone)]
 pub struct Anusrit {
     pub mantra_text: String,
@@ -58,8 +72,11 @@ pub struct ShastraConfig {
 
 #[derive(Debug, Default)]
 pub struct Repository {
-    pub mantras: HashMap<String, Mantra>,
+    /// All mantras indexed by text
+    pub mantras: HashMap<String, MantraInfo>,
+    /// All bhasyas (quote blocks)
     pub bhasyas: Vec<Bhasya>,
+    /// Anusrits outside bhasyas (for validation)
     pub anusrits: Vec<Anusrit>,
     pub config: Config,
     pub shastra_config: ShastraConfig,
@@ -119,11 +136,47 @@ impl Repository {
         Ok(repo)
     }
 
-    pub fn unexplained_mantras(&self) -> Vec<&Mantra> {
+    /// Get mantras without explanations
+    pub fn unexplained_mantras(&self) -> Vec<(&str, &MantraInfo)> {
         self.mantras
-            .values()
-            .filter(|m| !m.has_explanation)
+            .iter()
+            .filter(|(_, m)| !m.has_explanation)
+            .map(|(text, info)| (text.as_str(), info))
             .collect()
+    }
+
+    /// Get all mula mantras with their associated bhasyas
+    /// Returns (mantra_text, &Bhasya) for each mula occurrence
+    pub fn mula_mantras_with_bhasyas(&self) -> Vec<(&str, &Bhasya)> {
+        self.mantras
+            .iter()
+            .flat_map(|(mantra_text, info)| {
+                info.mula_bhasyas.iter().filter_map(move |&idx| {
+                    self.bhasyas.get(idx).map(|b| (mantra_text.as_str(), b))
+                })
+            })
+            .collect()
+    }
+
+    /// Find all bhasyas (mula + anusrit) for a given mantra text
+    pub fn bhasyas_for_mantra(&self, mantra_text: &str) -> Vec<&Bhasya> {
+        self.mantras
+            .get(mantra_text)
+            .map(|info| {
+                info.mula_bhasyas.iter()
+                    .chain(info.anusrit_bhasyas.iter())
+                    .filter_map(|&idx| self.bhasyas.get(idx))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Check if a mantra text exists as mula in any bhasya
+    pub fn has_any_bhasya_for_mantra(&self, mantra_text: &str) -> bool {
+        self.mantras
+            .get(mantra_text)
+            .map(|info| !info.mula_bhasyas.is_empty())
+            .unwrap_or(false)
     }
 }
 
@@ -156,7 +209,7 @@ fn parse_file(content: &str, file_name: &str, repo: &mut Repository) {
 struct Paragraph {
     text: String,
     lines: Vec<(usize, String)>,  // (line_num, text)
-    /// True if this paragraph uses >> (deprecation) instead of >
+    /// True if this paragraph is deprecated (from preceding `tyakta:` line)
     is_deprecated: bool,
     /// If set, this paragraph is attributed to a shastra (from preceding `shastra: name` line)
     shastra: Option<String>,
@@ -202,6 +255,7 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
     let mut pending_shastra: Option<String> = None;
     let mut current_khandita: Option<String> = None;
     let mut pending_khandita: Option<String> = None;
+    let mut pending_tyakta = false;
     let mut current_comment_prefix: Option<String> = None;
 
     for (i, line) in lines.iter().enumerate() {
@@ -224,6 +278,7 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
             }
             pending_shastra = None;
             pending_khandita = None;
+            pending_tyakta = false;
             continue;
         }
 
@@ -234,19 +289,19 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
             (line.trim_start(), None)
         };
 
-        // check for >> (deprecation) vs > (normal quote)
-        let is_deprecated_line = content.starts_with(">>");
+        // check for quote line (just > now, not >>)
         let is_quote_line = content.starts_with('>');
         let is_empty = line.trim().is_empty() || is_comment_only_line(line);
 
-        // check for `shastra: name` or `khandita: name` pattern (must be alone on its line)
+        // check for `shastra: name`, `khandita: name`, or `tyakta:` pattern (must be alone on its line)
         if !in_quote_block && !is_quote_line && !is_empty {
             if let Some(shastra_name) = content.strip_prefix("shastra:") {
                 let shastra_name = shastra_name.trim();
                 if !shastra_name.is_empty() {
                     // this is a shastra attribution line - remember it for next quote block
                     pending_shastra = Some(shastra_name.to_string());
-                    pending_khandita = None; // shastra and khandita are mutually exclusive
+                    pending_khandita = None; // these are mutually exclusive
+                    pending_tyakta = false;
                     current_comment_prefix = comment_prefix.map(|s| s.to_string());
                     continue; // don't include this line in any paragraph
                 }
@@ -256,15 +311,24 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                 if !khandita_name.is_empty() {
                     // this is a khandita (refutation) line - remember it for next quote block
                     pending_khandita = Some(khandita_name.to_string());
-                    pending_shastra = None; // shastra and khandita are mutually exclusive
+                    pending_shastra = None; // these are mutually exclusive
+                    pending_tyakta = false;
                     current_comment_prefix = comment_prefix.map(|s| s.to_string());
                     continue; // don't include this line in any paragraph
                 }
             }
+            if content.starts_with("tyakta:") {
+                // this is a tyakta (deprecation) line - remember it for next quote block
+                pending_tyakta = true;
+                pending_shastra = None; // these are mutually exclusive
+                pending_khandita = None;
+                current_comment_prefix = comment_prefix.map(|s| s.to_string());
+                continue; // don't include this line in any paragraph
+            }
         }
 
         if in_quote_block {
-            // inside a quote block - continue until non-quote, non-empty line
+            // inside a quote block - continue only if this is a quote line
             // for comment blocks, also check the comment prefix matches
             let same_comment_style = match (&current_comment_prefix, comment_prefix) {
                 (Some(current), Some(prefix)) => current == prefix,
@@ -272,20 +336,11 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                 _ => false,
             };
 
-            // check if deprecation status changed (>> vs >) - if so, end current block and start new
-            let deprecation_changed = is_quote_line && (is_deprecated != is_deprecated_line);
-
-            if is_quote_line && same_comment_style && !deprecation_changed {
+            if is_quote_line && same_comment_style {
                 current_lines.push((line_num, line.to_string()));
-            } else if is_empty && same_comment_style {
-                // empty line inside quote block - include it to preserve structure
-                if let Some(ref prefix) = current_comment_prefix {
-                    current_lines.push((line_num, format!("{} >", prefix)));
-                } else {
-                    current_lines.push((line_num, ">".to_string()));
-                }
             } else {
-                // non-quote line, different comment style, or deprecation changed - ends the quote block
+                // non-quote line (including empty lines) ends the quote block
+                // in markdown, blank lines between > blocks create separate blocks
                 let text = current_lines.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>().join("\n");
                 paragraphs.push(Paragraph {
                     text,
@@ -295,22 +350,51 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                     khandita: current_khandita.take(),
                 });
 
-                // if this line is also a quote line (e.g., deprecation changed), start a new quote block
-                if is_quote_line && same_comment_style {
+                in_quote_block = false;
+                is_deprecated = false;
+                current_comment_prefix = None;
+
+                // check for prefix lines that end the quote block
+                if let Some(shastra_name) = content.strip_prefix("shastra:") {
+                    let shastra_name = shastra_name.trim();
+                    if !shastra_name.is_empty() {
+                        pending_shastra = Some(shastra_name.to_string());
+                        pending_khandita = None;
+                        pending_tyakta = false;
+                        current_comment_prefix = comment_prefix.map(|s| s.to_string());
+                        continue;
+                    }
+                }
+                if let Some(khandita_name) = content.strip_prefix("khandita:") {
+                    let khandita_name = khandita_name.trim();
+                    if !khandita_name.is_empty() {
+                        pending_khandita = Some(khandita_name.to_string());
+                        pending_shastra = None;
+                        pending_tyakta = false;
+                        current_comment_prefix = comment_prefix.map(|s| s.to_string());
+                        continue;
+                    }
+                }
+                if content.starts_with("tyakta:") {
+                    pending_tyakta = true;
+                    pending_shastra = None;
+                    pending_khandita = None;
+                    current_comment_prefix = comment_prefix.map(|s| s.to_string());
+                    continue;
+                }
+
+                // if this line is a quote line, start a new quote block
+                if is_quote_line {
                     in_quote_block = true;
-                    is_deprecated = is_deprecated_line;
+                    is_deprecated = pending_tyakta;
+                    pending_tyakta = false;
                     current_shastra = pending_shastra.take();
                     current_khandita = pending_khandita.take();
                     current_comment_prefix = comment_prefix.map(|s| s.to_string());
                     current_lines.push((line_num, line.to_string()));
-                } else {
-                    in_quote_block = false;
-                    is_deprecated = false;
-                    current_comment_prefix = None;
+                } else if !is_empty {
                     // start new paragraph with this line if not empty
-                    if !is_empty {
-                        current_lines.push((line_num, line.to_string()));
-                    }
+                    current_lines.push((line_num, line.to_string()));
                 }
             }
         } else {
@@ -327,9 +411,10 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                         khandita: None,
                     });
                 }
-                // empty line also clears pending shastra/khandita
+                // empty line also clears pending state
                 pending_shastra = None;
                 pending_khandita = None;
+                pending_tyakta = false;
                 current_comment_prefix = None;
             } else if is_quote_line {
                 // starting a quote block
@@ -345,7 +430,8 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
                     });
                 }
                 in_quote_block = true;
-                is_deprecated = is_deprecated_line;
+                is_deprecated = pending_tyakta;
+                pending_tyakta = false;
                 current_shastra = pending_shastra.take();
                 current_khandita = pending_khandita.take();
                 current_comment_prefix = comment_prefix.map(|s| s.to_string());
@@ -353,9 +439,10 @@ fn extract_paragraphs(lines: &[&str], skip_lines: &[bool]) -> Vec<Paragraph> {
             } else {
                 // regular line
                 current_lines.push((line_num, line.to_string()));
-                // regular line clears pending shastra/khandita
+                // regular line clears pending state
                 pending_shastra = None;
                 pending_khandita = None;
+                pending_tyakta = false;
                 current_comment_prefix = None;
             }
         }
@@ -385,9 +472,9 @@ fn strip_comment_and_quote(line: &str) -> &str {
         line.trim_start()
     };
 
-    // then strip >> or > quote prefix
-    after_comment.strip_prefix(">>")
-        .unwrap_or_else(|| after_comment.strip_prefix('>').unwrap_or(after_comment))
+    // then strip > quote prefix
+    after_comment.strip_prefix('>')
+        .unwrap_or(after_comment)
         .trim_start()
 }
 
@@ -410,70 +497,97 @@ fn parse_paragraph(para: &Paragraph, file_name: &str, repo: &mut Repository) {
     let is_quote_block = is_quote_paragraph(&para.text);
 
     if is_quote_block {
-        // strip comment prefix and > or >> from paragraph text for commentary extraction
+        // strip comment prefix and > from paragraph text
         let unquoted_para: String = para.text
             .lines()
             .map(strip_comment_and_quote)
             .collect::<Vec<_>>()
             .join("\n");
 
-        // parse each line (strip comment prefix and > or >> prefix) for mantras and references
+        // first pass: check if this quote block contains any mula mantras
+        let has_mula_mantra = para.lines.iter().any(|(_, line)| {
+            let unquoted = strip_comment_and_quote(line);
+            unquoted.starts_with("**^")
+        });
+
+        // only create a bhasya if it contains at least one mula mantra
+        let bhasya_index = if has_mula_mantra {
+            let start_line = para.lines.first().map(|(n, _)| *n).unwrap_or(0);
+            let idx = repo.bhasyas.len();
+
+            // determine the kind based on paragraph attributes
+            let kind = if para.is_deprecated {
+                BhasyaKind::Tyakta
+            } else if let Some(ref shastra) = para.shastra {
+                BhasyaKind::Uddhrit(shastra.clone())
+            } else if let Some(ref khandita) = para.khandita {
+                BhasyaKind::Khandita(khandita.clone())
+            } else {
+                BhasyaKind::Mula
+            };
+
+            repo.bhasyas.push(Bhasya {
+                paragraph: unquoted_para.clone(),
+                file: file_name.to_string(),
+                line: start_line,
+                kind,
+            });
+            Some(idx)
+        } else {
+            None
+        };
+
+        // second pass: parse each line for mantras and references
         for (line_num, line) in &para.lines {
             let unquoted_line = strip_comment_and_quote(line);
-            parse_line_with_paragraph(
+            parse_line_in_bhasya(
                 unquoted_line,
                 file_name,
                 *line_num,
-                &unquoted_para,
                 repo,
-                true,
-                para.is_deprecated,
-                para.shastra.clone(),
-                para.khandita.clone(),
+                bhasya_index,
             );
         }
     } else {
-        // not a quote block - only parse for references, not bhasyas
+        // not a quote block - only parse for anusrits, not mula mantras
         for (line_num, line) in &para.lines {
-            // still strip comment prefix for anusrit detection in code
             let content = if let Some((rest, _)) = strip_comment_prefix(line) {
                 rest
             } else {
                 line.as_str()
             };
-            parse_line_with_paragraph(content, file_name, *line_num, &para.text, repo, false, false, None, None);
+            parse_line_for_anusrits(content, file_name, *line_num, repo, None);
         }
     }
 }
 
-fn parse_line_with_paragraph(
+/// Parse a line inside a bhasya (quote block) for mula mantras and anusrits
+fn parse_line_in_bhasya(
     line: &str,
     file_name: &str,
     line_num: usize,
-    paragraph: &str,
     repo: &mut Repository,
-    allow_bhasyas: bool,
-    is_deprecated: bool,
-    shastra: Option<String>,
-    khandita: Option<String>,
+    bhasya_index: Option<usize>,
 ) {
     let mut chars = line.chars().peekable();
     let mut in_backtick = false;
+    let mut position = 0usize;
 
     while let Some(c) = chars.next() {
         // skip content inside backticks (inline code)
         if c == '`' {
             in_backtick = !in_backtick;
+            position += 1;
             continue;
         }
         if in_backtick {
+            position += 1;
             continue;
         }
 
-        // **^mantra^** - bhasya syntax (mantra with commentary)
-        // or **^mantra^**@kosha for external commentary
-        // only allowed inside quote blocks (> ...)
-        if allow_bhasyas && c == '*' && chars.peek() == Some(&'*') {
+        // **^mantra^** - mula mantra syntax
+        // only at the START of a line (position 0) - mid-line occurrences are ignored
+        if c == '*' && chars.peek() == Some(&'*') {
             chars.next(); // consume second *
             if chars.peek() == Some(&'^') {
                 chars.next(); // consume ^
@@ -495,35 +609,36 @@ fn parse_line_with_paragraph(
                 }
 
                 let mantra_text = mantra_text.trim().to_string();
-                if !mantra_text.is_empty() {
-                    let commentary = extract_paragraph_commentary(paragraph, &mantra_text);
-                    let has_explanation = !commentary.is_empty();
+                // only create mula mantra if at start of line (position 0)
+                if !mantra_text.is_empty() && position == 0 {
+                    if let Some(idx) = bhasya_index {
+                        // add to mantras with mula_bhasyas
+                        let entry = repo.mantras.entry(mantra_text.clone()).or_default();
+                        entry.mula_bhasyas.push(idx);
 
-                    repo.bhasyas.push(Bhasya {
-                        mantra_text: mantra_text.clone(),
-                        commentary,
-                        file: file_name.to_string(),
-                        line: line_num,
-                        is_deprecated,
-                        shastra: shastra.clone(),
-                        khandita: khandita.clone(),
-                    });
+                        // set first definition location if not set
+                        if entry.file.is_empty() {
+                            entry.file = file_name.to_string();
+                            entry.line = line_num;
+                        }
 
-                    // only add to mantras if this is a mula bhasya (not quoted, not tyakta, not khandita)
-                    if shastra.is_none() && khandita.is_none() && !is_deprecated {
-                        repo.mantras.entry(mantra_text.clone()).or_insert(Mantra {
-                            text: mantra_text,
-                            file: file_name.to_string(),
-                            line: line_num,
-                            has_explanation,
-                        });
+                        // mark as explained if this is a Mula bhasya
+                        let is_mula = repo.bhasyas.get(idx)
+                            .map(|b| matches!(b.kind, BhasyaKind::Mula))
+                            .unwrap_or(false);
+                        if is_mula {
+                            entry.has_explanation = true;
+                        }
                     }
                 }
                 continue;
             }
+            position += 2; // already consumed two *
+            continue;
         }
+        position += 1;
 
-        // reference with optional @shastra
+        // _| mantra |_ - anusrit syntax
         if c == '_' && chars.peek() == Some(&'|') {
             chars.next(); // consume |
             let mut ref_text = String::new();
@@ -558,77 +673,93 @@ fn parse_line_with_paragraph(
                     }
                 }
 
-                repo.anusrits.push(Anusrit {
-                    mantra_text: ref_text,
-                    file: file_name.to_string(),
-                    line: line_num,
-                    shastra: shastra_ref,
-                });
+                // if inside a bhasya, add to mantras.anusrit_bhasyas; otherwise to anusrits
+                if let Some(idx) = bhasya_index {
+                    let entry = repo.mantras.entry(ref_text).or_default();
+                    entry.anusrit_bhasyas.push(idx);
+                } else {
+                    repo.anusrits.push(Anusrit {
+                        mantra_text: ref_text,
+                        file: file_name.to_string(),
+                        line: line_num,
+                        shastra: shastra_ref,
+                    });
+                }
             }
         }
     }
 }
 
-
-// Extract commentary from paragraph (entire paragraph minus mantras)
-fn extract_paragraph_commentary(paragraph: &str, mantra_text: &str) -> String {
-    // remove all mantra markers from the paragraph
-    let mut result = paragraph.to_string();
-
-    // remove this specific mantra definition (**^mantra^** syntax only)
-    let bold_pattern = format!("**^{}^**", mantra_text);
-    result = result.replace(&bold_pattern, "");
-
-    // also remove any other mantra markers in the paragraph
-    // (a paragraph might define multiple mantras)
-    let mut cleaned = String::new();
-    let mut chars = result.chars().peekable();
-    let mut in_mantra = false;
+/// Parse a line outside quote blocks for anusrits only
+fn parse_line_for_anusrits(
+    line: &str,
+    file_name: &str,
+    line_num: usize,
+    repo: &mut Repository,
+    bhasya_index: Option<usize>,
+) {
+    let mut chars = line.chars().peekable();
+    let mut in_backtick = false;
 
     while let Some(c) = chars.next() {
-        // handle **^ bold mantra start
-        if c == '*' && chars.peek() == Some(&'*') {
-            let mut peek_chars = chars.clone();
-            peek_chars.next(); // skip second *
-            if peek_chars.peek() == Some(&'^') {
-                chars.next(); // consume second *
-                chars.next(); // consume ^
-                in_mantra = true;
-                continue;
-            }
-        }
-        // handle ^** bold mantra end
-        if c == '^' && in_mantra {
-            // check for ** after
-            if chars.peek() == Some(&'*') {
-                let mut peek_chars = chars.clone();
-                peek_chars.next();
-                if peek_chars.peek() == Some(&'*') {
-                    chars.next(); // consume first *
-                    chars.next(); // consume second *
-                }
-            }
-            in_mantra = false;
+        if c == '`' {
+            in_backtick = !in_backtick;
             continue;
         }
-        if !in_mantra {
-            cleaned.push(c);
+        if in_backtick {
+            continue;
+        }
+
+        // _| mantra |_ - anusrit syntax
+        if c == '_' && chars.peek() == Some(&'|') {
+            chars.next(); // consume |
+            let mut ref_text = String::new();
+
+            loop {
+                match chars.next() {
+                    Some('|') if chars.peek() == Some(&'_') => {
+                        chars.next(); // consume _
+                        break;
+                    }
+                    Some(c) => ref_text.push(c),
+                    None => break,
+                }
+            }
+
+            let ref_text = ref_text.trim().to_string();
+            if !ref_text.is_empty() {
+                // check for @shastra suffix
+                let mut shastra_ref = None;
+                if chars.peek() == Some(&'@') {
+                    chars.next(); // consume @
+                    let mut shastra_name = String::new();
+                    for c in chars.by_ref() {
+                        if c.is_alphanumeric() || c == '-' || c == '_' {
+                            shastra_name.push(c);
+                        } else {
+                            break;
+                        }
+                    }
+                    if !shastra_name.is_empty() {
+                        shastra_ref = Some(shastra_name);
+                    }
+                }
+
+                // if inside a bhasya, add to mantras.anusrit_bhasyas; otherwise to anusrits
+                if let Some(idx) = bhasya_index {
+                    let entry = repo.mantras.entry(ref_text).or_default();
+                    entry.anusrit_bhasyas.push(idx);
+                } else {
+                    repo.anusrits.push(Anusrit {
+                        mantra_text: ref_text,
+                        file: file_name.to_string(),
+                        line: line_num,
+                        shastra: shastra_ref,
+                    });
+                }
+            }
         }
     }
-
-    // clean up the result
-    let trimmed = cleaned
-        .lines()
-        .map(|l| l.trim())
-        .filter(|l| !l.is_empty())
-        .collect::<Vec<_>>()
-        .join(" ");
-
-    // strip leading " - " which is common commentary prefix
-    let trimmed = trimmed.trim();
-    let trimmed = trimmed.strip_prefix("- ").unwrap_or(trimmed);
-
-    trimmed.to_string()
 }
 
 // _| mantra commentary can be in same para |_ - mark mantras as explained if they have nearby commentary

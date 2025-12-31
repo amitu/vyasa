@@ -1,4 +1,4 @@
-use crate::parser::Repository;
+use crate::parser::{Repository, BhasyaKind};
 use std::path::Path;
 
 pub fn run(path: &Path) -> Result<(), String> {
@@ -14,14 +14,11 @@ pub fn run(path: &Path) -> Result<(), String> {
     let mut tyakta_count = 0;
 
     for bhasya in &repo.bhasyas {
-        if bhasya.is_deprecated {
-            tyakta_count += 1;
-        } else if bhasya.shastra.is_some() {
-            uddhrit_count += 1;
-        } else if bhasya.khandita.is_some() {
-            khandita_count += 1;
-        } else {
-            bhasya_count += 1;
+        match &bhasya.kind {
+            BhasyaKind::Tyakta => tyakta_count += 1,
+            BhasyaKind::Uddhrit(_) => uddhrit_count += 1,
+            BhasyaKind::Khandita(_) => khandita_count += 1,
+            BhasyaKind::Mula => bhasya_count += 1,
         }
     }
 

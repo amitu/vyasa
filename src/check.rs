@@ -1,4 +1,4 @@
-use crate::parser::Repository;
+use crate::parser::{Repository, BhasyaKind};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -23,9 +23,9 @@ pub fn run(path: &Path) -> Result<(), String> {
             "found {} mantras without explanations:\n",
             unexplained.len()
         );
-        for mantra in &unexplained {
-            println!("  {}:{}", mantra.file, mantra.line);
-            println!("    ^{}^\n", truncate(&mantra.text, 60));
+        for (mantra_text, info) in &unexplained {
+            println!("  {}:{}", info.file, info.line);
+            println!("    ^{}^\n", truncate(mantra_text, 60));
         }
         error_counts.push(format!("{} unexplained mantras", unexplained.len()));
     }
@@ -39,9 +39,15 @@ pub fn run(path: &Path) -> Result<(), String> {
             "found {} duplicate bhasyas:\n",
             duplicate_bhasyas.len()
         );
-        for (mantra, commentary, locations) in &duplicate_bhasyas {
-            println!("  > **^{}^**", mantra);
-            println!("  > {}\n", truncate(commentary, 70));
+        for (_mantra, paragraph, locations) in &duplicate_bhasyas {
+            // show the original paragraph with indentation
+            for line in paragraph.lines().take(4) {
+                println!("  {}", line);
+            }
+            if paragraph.lines().count() > 4 {
+                println!("  ...");
+            }
+            println!();
             println!("  found at:");
             for (file, line) in locations {
                 println!("    - {}:{}", file, line);
@@ -227,24 +233,22 @@ fn check_shastra_quotes(repo: &Repository) -> Vec<String> {
 
     let self_name = repo.config.name.as_ref().map(|s| s.as_str());
 
-    // find all bhasyas with shastra attribution
-    for bhasya in &repo.bhasyas {
-        if let Some(shastra_name) = &bhasya.shastra {
+    // find all mula mantras in bhasyas with Uddhrit kind
+    for (mantra_text, bhasya) in repo.mula_mantras_with_bhasyas() {
+        if let BhasyaKind::Uddhrit(ref shastra_name) = bhasya.kind {
             // check if this is a self-reference
             if self_name == Some(shastra_name.as_str()) {
                 // self-reference: check against current repo
-                let has_mula = repo.mantras.contains_key(&bhasya.mantra_text);
+                let has_mula = repo.mantras.contains_key(mantra_text);
                 if !has_mula {
                     // check if it exists as tyakta only
-                    let has_any = repo.bhasyas.iter().any(|b| {
-                        b.mantra_text == bhasya.mantra_text && b.shastra.is_none()
-                    });
+                    let has_any = repo.has_any_bhasya_for_mantra(mantra_text);
                     if !has_any {
                         errors.push(format!(
                             "{}:{}: mantra not found in self: ^{}^",
                             bhasya.file,
                             bhasya.line,
-                            truncate(&bhasya.mantra_text, 30)
+                            truncate(mantra_text, 30)
                         ));
                     }
                 }
@@ -258,7 +262,7 @@ fn check_shastra_quotes(repo: &Repository) -> Vec<String> {
                     bhasya.file,
                     bhasya.line,
                     shastra_name,
-                    truncate(&bhasya.mantra_text, 30)
+                    truncate(mantra_text, 30)
                 ));
                 continue;
             };
@@ -293,11 +297,9 @@ fn check_shastra_quotes(repo: &Repository) -> Vec<String> {
 
             if let Some(external) = external_repo {
                 // check if mantra exists in mula form (non-tyakta bhasya)
-                let has_mula = external.mantras.contains_key(&bhasya.mantra_text);
+                let has_mula = external.mantras.contains_key(mantra_text);
                 // check if any bhasya (mula or tyakta) exists
-                let has_any_bhasya = external.bhasyas.iter().any(|b| {
-                    b.mantra_text == bhasya.mantra_text
-                });
+                let has_any_bhasya = external.has_any_bhasya_for_mantra(mantra_text);
 
                 if !has_any_bhasya {
                     // no bhasya at all - error
@@ -306,7 +308,7 @@ fn check_shastra_quotes(repo: &Repository) -> Vec<String> {
                         bhasya.file,
                         bhasya.line,
                         shastra_name,
-                        truncate(&bhasya.mantra_text, 30)
+                        truncate(mantra_text, 30)
                     ));
                     continue;
                 }
@@ -318,7 +320,7 @@ fn check_shastra_quotes(repo: &Repository) -> Vec<String> {
                         bhasya.file,
                         bhasya.line,
                         shastra_name,
-                        truncate(&bhasya.mantra_text, 30)
+                        truncate(mantra_text, 30)
                     ));
                 }
             } else {
@@ -340,9 +342,9 @@ fn check_khandita(repo: &Repository) -> Vec<String> {
     // cache parsed external shastras
     let mut shastra_repos: HashMap<String, Option<Repository>> = HashMap::new();
 
-    // find all bhasyas with khandita attribution
-    for bhasya in &repo.bhasyas {
-        if let Some(shastra_name) = &bhasya.khandita {
+    // find all mula mantras in bhasyas with Khandita kind
+    for (mantra_text, bhasya) in repo.mula_mantras_with_bhasyas() {
+        if let BhasyaKind::Khandita(ref shastra_name) = bhasya.kind {
             // resolve shastra name to path via shastra.json
             let Some(shastra_path) = repo.shastra_config.aliases.get(shastra_name) else {
                 errors.push(format!(
@@ -350,7 +352,7 @@ fn check_khandita(repo: &Repository) -> Vec<String> {
                     bhasya.file,
                     bhasya.line,
                     shastra_name,
-                    truncate(&bhasya.mantra_text, 30)
+                    truncate(mantra_text, 30)
                 ));
                 continue;
             };
@@ -385,9 +387,7 @@ fn check_khandita(repo: &Repository) -> Vec<String> {
 
             if let Some(external) = external_repo {
                 // check if any bhasya exists for this mantra
-                let has_any_bhasya = external.bhasyas.iter().any(|b| {
-                    b.mantra_text == bhasya.mantra_text
-                });
+                let has_any_bhasya = external.has_any_bhasya_for_mantra(mantra_text);
 
                 if !has_any_bhasya {
                     // no bhasya at all - error: can't refute what doesn't exist
@@ -396,7 +396,7 @@ fn check_khandita(repo: &Repository) -> Vec<String> {
                         bhasya.file,
                         bhasya.line,
                         shastra_name,
-                        truncate(&bhasya.mantra_text, 30)
+                        truncate(mantra_text, 30)
                     ));
                     continue;
                 }
@@ -421,12 +421,15 @@ fn check_unresolved_shastra_conflicts(repo: &Repository) -> Vec<String> {
 
     // collect my positions: (mantra_text, source_shastra) -> "khandita" | "uddhrit"
     let mut my_positions: HashMap<(String, String), &str> = HashMap::new();
-    for bhasya in &repo.bhasyas {
-        if let Some(ref shastra) = bhasya.khandita {
-            my_positions.insert((bhasya.mantra_text.clone(), shastra.clone()), "khandita");
-        }
-        if let Some(ref shastra) = bhasya.shastra {
-            my_positions.insert((bhasya.mantra_text.clone(), shastra.clone()), "uddhrit");
+    for (mantra_text, bhasya) in repo.mula_mantras_with_bhasyas() {
+        match &bhasya.kind {
+            BhasyaKind::Khandita(shastra) => {
+                my_positions.insert((mantra_text.to_string(), shastra.clone()), "khandita");
+            }
+            BhasyaKind::Uddhrit(shastra) => {
+                my_positions.insert((mantra_text.to_string(), shastra.clone()), "uddhrit");
+            }
+            _ => {}
         }
     }
 
@@ -449,20 +452,23 @@ fn check_unresolved_shastra_conflicts(repo: &Repository) -> Vec<String> {
         }
 
         if let Ok(external) = Repository::parse(path) {
-            for bhasya in &external.bhasyas {
-                if let Some(ref source) = bhasya.khandita {
-                    let key = (bhasya.mantra_text.clone(), source.clone());
-                    external_positions
-                        .entry(key)
-                        .or_default()
-                        .push((shastra_name.clone(), "khandita"));
-                }
-                if let Some(ref source) = bhasya.shastra {
-                    let key = (bhasya.mantra_text.clone(), source.clone());
-                    external_positions
-                        .entry(key)
-                        .or_default()
-                        .push((shastra_name.clone(), "uddhrit"));
+            for (ext_mantra_text, ext_bhasya) in external.mula_mantras_with_bhasyas() {
+                match &ext_bhasya.kind {
+                    BhasyaKind::Khandita(source) => {
+                        let key = (ext_mantra_text.to_string(), source.clone());
+                        external_positions
+                            .entry(key)
+                            .or_default()
+                            .push((shastra_name.clone(), "khandita"));
+                    }
+                    BhasyaKind::Uddhrit(source) => {
+                        let key = (ext_mantra_text.to_string(), source.clone());
+                        external_positions
+                            .entry(key)
+                            .or_default()
+                            .push((shastra_name.clone(), "uddhrit"));
+                    }
+                    _ => {}
                 }
             }
         }
@@ -507,26 +513,26 @@ fn check_khandita_uddhrit_conflicts(repo: &Repository) -> Vec<String> {
     let mut errors = Vec::new();
 
     // collect all khandita: (mantra_text, shastra) -> (file, line)
-    let mut khandita_refs: HashMap<(&str, &str), (&str, usize)> = HashMap::new();
-    for bhasya in &repo.bhasyas {
-        if let Some(ref shastra) = bhasya.khandita {
+    let mut khandita_refs: HashMap<(String, String), (String, usize)> = HashMap::new();
+    for (mantra_text, bhasya) in repo.mula_mantras_with_bhasyas() {
+        if let BhasyaKind::Khandita(ref shastra) = bhasya.kind {
             khandita_refs.insert(
-                (&bhasya.mantra_text, shastra),
-                (&bhasya.file, bhasya.line),
+                (mantra_text.to_string(), shastra.clone()),
+                (bhasya.file.clone(), bhasya.line),
             );
         }
     }
 
     // check if any uddhrit matches a khandita
-    for bhasya in &repo.bhasyas {
-        if let Some(ref shastra) = bhasya.shastra {
-            let key = (bhasya.mantra_text.as_str(), shastra.as_str());
+    for (mantra_text, bhasya) in repo.mula_mantras_with_bhasyas() {
+        if let BhasyaKind::Uddhrit(ref shastra) = bhasya.kind {
+            let key = (mantra_text.to_string(), shastra.clone());
             if let Some((khandita_file, khandita_line)) = khandita_refs.get(&key) {
                 errors.push(format!(
                     "{}:{}: cannot uddhrit ^{}^ from '{}' - already khandita at {}:{}",
                     bhasya.file,
                     bhasya.line,
-                    truncate(&bhasya.mantra_text, 30),
+                    truncate(mantra_text, 30),
                     shastra,
                     khandita_file,
                     khandita_line
@@ -538,34 +544,42 @@ fn check_khandita_uddhrit_conflicts(repo: &Repository) -> Vec<String> {
     errors
 }
 
-/// Check for duplicate bhasyas - same mantra + commentary must be unique
-/// Returns: Vec<(mantra_text, commentary, locations)>
+/// Check for duplicate bhasyas - same mantra in same paragraph content must be unique
+/// Returns: Vec<(mantra_text, paragraph, locations)>
 fn check_duplicate_bhasyas(repo: &Repository) -> Vec<(String, String, Vec<(String, usize)>)> {
-    // key: (mantra_text, commentary) -> list of (file, line)
-    let mut occurrences: HashMap<(&str, &str), Vec<(&str, usize)>> = HashMap::new();
+    // key: (mantra_text, paragraph) -> list of (file, line)
+    let mut occurrences: HashMap<(String, String), Vec<(String, usize, String)>> = HashMap::new();
 
-    for bhasya in &repo.bhasyas {
-        // skip uddhrit (quoted from other shastras) - duplicates allowed
-        if bhasya.shastra.is_some() {
+    for (mantra_text, bhasya) in repo.mula_mantras_with_bhasyas() {
+        // skip non-Mula bhasyas - duplicates allowed for uddhrit/khandita
+        if !matches!(bhasya.kind, BhasyaKind::Mula) {
             continue;
         }
 
-        let key = (bhasya.mantra_text.as_str(), bhasya.commentary.as_str());
+        // normalize paragraph for comparison (trim whitespace)
+        let normalized_para = bhasya.paragraph.lines()
+            .map(|l| l.trim())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        let key = (mantra_text.to_string(), normalized_para);
         occurrences
             .entry(key)
             .or_default()
-            .push((&bhasya.file, bhasya.line));
+            .push((bhasya.file.clone(), bhasya.line, bhasya.paragraph.clone()));
     }
 
     // collect only those with more than one occurrence
     occurrences
         .into_iter()
         .filter(|(_, locs)| locs.len() > 1)
-        .map(|((mantra, commentary), locs)| {
+        .map(|((mantra, _commentary), locs)| {
+            // use the paragraph from the first occurrence for display
+            let paragraph = locs.first().map(|(_, _, p)| p.to_string()).unwrap_or_default();
             (
                 mantra.to_string(),
-                commentary.to_string(),
-                locs.into_iter().map(|(f, l)| (f.to_string(), l)).collect(),
+                paragraph,
+                locs.into_iter().map(|(f, l, _)| (f.to_string(), l)).collect(),
             )
         })
         .collect()

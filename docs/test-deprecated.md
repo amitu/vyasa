@@ -1,3 +1,4 @@
 # Test Tyakta
 
->> **^this is a tyakta bhasya^** - testing if tyakta detection works
+tyakta:
+> **^this is a tyakta bhasya^** - testing if tyakta detection works

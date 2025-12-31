@@ -33,21 +33,18 @@ pub fn run(path: &Path, mantra_text: &str, show_references: bool) -> Result<(), 
 
     println!("mantra: {}\n", mantra_text);
 
-    // show bhasyas
-    let bhasyas: Vec<_> = repo
-        .bhasyas
-        .iter()
-        .filter(|b| b.mantra_text == mantra_text)
-        .collect();
+    // show bhasyas for this mantra
+    let bhasyas = repo.bhasyas_for_mantra(mantra_text);
 
     if bhasyas.is_empty() {
         println!("bhasyas: none (no explanations)\n");
     } else {
         println!("bhasyas ({}):", bhasyas.len());
-        for b in &bhasyas {
+        for b in bhasyas {
             println!("  {}:{}", b.file, b.line);
-            if !b.commentary.is_empty() {
-                println!("    \"{}\"", truncate(&b.commentary, 60));
+            // show first line of the original paragraph (truncated)
+            if let Some(first_line) = b.paragraph.lines().next() {
+                println!("    {}", truncate(first_line, 70));
             }
             println!();
         }

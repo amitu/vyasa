@@ -50,12 +50,13 @@ shastra: physics
 
 ## tyakta syntax (deprecation)
 
-> **^tyakta uses double angle bracket^** - to deprecate a bhasya, use `>>` instead
-> of `>` at the start of the quote block.
+> **^tyakta uses tyakta prefix^** - to deprecate a bhasya, use `tyakta:` on the
+> line before the quote block.
 
 ```markdown
->> **^old way of doing things^** - this approach is no longer recommended.
->> prefer the new method instead.
+tyakta:
+> **^old way of doing things^** - this approach is no longer recommended.
+> prefer the new method instead.
 ```
 
 ## syntax in source code

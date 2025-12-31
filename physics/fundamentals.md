@@ -12,5 +12,6 @@
 > when one body exerts a force on a second body, the second body exerts an
 > equal force in the opposite direction on the first.
 
->> **^ether is the medium for light^** - this was believed before Einstein's
->> special relativity. light does not require a medium to propagate.
+tyakta:
+> **^ether is the medium for light^** - this was believed before Einstein's
+> special relativity. light does not require a medium to propagate.

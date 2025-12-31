@@ -72,11 +72,12 @@ khandita: physics
 ### tyakta (त्यक्त - deprecated)
 
 > **^tyakta deprecates an existing bhasya^** - the term means "abandoned" or
-> "given up" in Sanskrit. use `>>` instead of `>` to mark a bhasya as deprecated.
+> "given up" in Sanskrit. use `tyakta:` prefix to mark a bhasya as deprecated.
 
 ```markdown
->> **^old way of doing things^** - this approach is no longer recommended.
->> we now prefer the new method described elsewhere.
+tyakta:
+> **^old way of doing things^** - this approach is no longer recommended.
+> we now prefer the new method described elsewhere.
 ```
 
 > **^tyakta blocks consumers of the bhasya^** - when someone quotes (uddhrit)
