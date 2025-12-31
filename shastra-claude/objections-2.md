@@ -1,6 +1,15 @@
 ## OBJECTIONS STATUS
 
-This is the second set of objections after https://github.com/amitu/vyasa/commit/f0db97f24338243ab01c083476299d0d681cd208.
+This is the second set of objections after https://github.com/amitu/vyasa/commit/f0db97f24338243ab01c083476299d0d681cd208. 
+
+# ADDRESSED (can drop):
+
+| #   | Objection              | How Addressed                                                       |
+  |-----|------------------------|---------------------------------------------------------------------|
+| 12  | Can shastra be wrong?  | objections.md: "shastra is a person's view", relativism section     |
+| 15  | Shastras conflict?     | tyakta (abandon own), khandita (reject others), observer resolution |
+| 16  | Versioning?            | tyakta provides deprecation mechanism                               |
+| 18  | Shastra relationships? | khandita, observed shastras, astika/nastika                         |
 
 PARTIALLY ADDRESSED:
 
@@ -30,6 +39,9 @@ NEW ISSUES IN YOUR UPDATES
 
 objections.md:
 
+1. Line 12: Nested quote > > - What does this syntax mean? Is this a bhasya within a bhasya? Quoting someone else? Undefined.
+2. Line 24-25: Inconsistent spacing - **^ mantra^** has space before mantra but not after. Should be **^ mantra ^**.
+3. Line 87: Incomplete - "When one prepares a astika" cuts off mid-thought.
 4. Dismissive framing risk - "shastra does not concern itself with people who don't agree" could read as "we don't engage with criticism." That's intellectually weak. Real strength is engaging with the best opposing arguments, not ignoring them.
 5. Line 20: "Do NOT bother reading their words" - Hostile. Alienates curious skeptics who might convert. Also contradicts the learning mindset.
 6. Astika/nastika as binary - What about people who agree with 70%? Are they astika or nastika? The binary is too crude.

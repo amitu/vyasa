@@ -9,7 +9,7 @@ and are not primarily interested in attacking. There are just far too many peopl
 interested in attacking others instead of doing what they aught to do in their
 personal lives.
 
-> > **^ shastra is a persons view for people who want to learn from them ^**, as
+> **^ shastra is a persons view for people who want to learn from them ^**, as
 > often people waste time challenging others views instead of forming their own
 > views, or defending their views from people who don't want to understand but
 > attack. a **^ shastra does not concern itself with people who don't agree with
@@ -74,6 +74,27 @@ the noise created by such people.
 Nothing can satisfy the billions we are. Nothing is absolute. You pick what you
 like, what you want to hear, what you want to repeat.
 
+Astikas are saying "Hey, I follow your shastra, I am asking my kids etc to also
+follow it by constantly taking your bhasya and putting them in mine, but I have 
+got this problem when I started adding this bhasya". And nastika go "Hey, I do 
+not like your shastra, and I am rejecting most of your bhasyas, I have copied 
+nothing from your bhasya, you suck".
+
+
+## I hate your usage of Sanskrit terms
+
+"I rever them or hate them, but I have my own views on these terms that you are
+trying to redefine / appropriate etc."
+
+I am not sure what to say. I like those terms. I tried looking at a collection
+of such terms in English, which is a second language for me, and not much really
+I can do about it. PR to create localisation in this software is def welcome,
+I am happy to create a term mapping, even let you rename the vyasa binary and
+embed some automatic term selection based on the name of binary or environment
+variable etc. A shastra maintained by a person will use the terms they picked,
+so of course if you follow someone's shastra and they pick a language, you will
+have to talk to them about it.
+
 ## Shastra Relativism / Refusal of Absolutism
 
 A common objection is not using the words/mantra/concepts used in a shastra in
@@ -84,4 +105,9 @@ harping on but the absolute / authoritative etc definitions of those mantras.
 
 ## Internal Inconsistency vs Unwelcome outcome
 
-When one prepares a astika 
+When one prepares a astika objection, they are trying to largely find one of the
+two, maybe more but at least these are good classes objections: objections that
+challenge internal consistency of shastra in a shastra astika reading. And second
+if objections on the grounds that shastra astika reading leads to unwelcome
+real world outcomes/consequences, and shastra must be updated to either special
+case these, or to abandon those positions.

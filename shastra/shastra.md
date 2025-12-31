@@ -38,9 +38,9 @@ call out things, that then you can dedicate more focus / attention on.
 
 So the first think I want to invite your attention to is:
 
-> **^ shastra ^** - a repository of knowledge, contains authoritative 
-> definitions, **^ bhasya ^** and supporting material (tutorials, explanations) 
-> that help humans understand the concepts.
+> **^ shastra ^** - a repository of knowledge, organized as **^ mantra ^**,
+> **^ bhasya ^** and supporting material (tutorials, explanations) that help 
+> humans understand the concepts.
 
 You are reading this in a github repository called amitu/vyasa, which is one
 way to distribute _| shastra |_, and is called a repository of knowledge. You
@@ -52,6 +52,22 @@ remembering / propagating / preserving as per the author of the _| shastra |_.
 We will talk in detail about _| bhasya |_ later on. They are the primary purpose
 of a _| shastra |_.
 
-And a _| shastra |_ can contain other text, like if you are reading this
-document, one para is specially called out, but the rest of the text is some
-sort of supporting material, an explanation, something to help people understand.
+And a _| shastra |_ can contain other text, like tutorials, explanations etc.
+if you are reading this document, one para is specially called out, we call them
+_| bhasya |_, but the rest of the text in this document for example, is 
+supporting material, explanation here or philosophy, tutorial etc. They
+are to be read, if you are trying to understand something for the first time.
+
+> **^ shastra are personal ^**, and everyone participating in this system, using
+> **^ vyasa ^** software in day to day life is to create their own **^ shastra 
+> ^** by observing other **^ shastra ^** they find worth learning from. Goal is
+> to copy-paste the specific **^ bhasya ^** one has just learnt, found 
+> interesting or worth re-sharing / propagating / remembering.
+
+So _| vyasa |_ is a software that helps you create your own personal _| shastra 
+|_, and you do that by either creating your own original _| bhasya |_ or copy
+paste from _| shastra |_ you are "observing" (_| observed shastra |_).
+
+> **^ vyasa helps track personal accepted knowledge **^ and deals with each
+> statement as a personal position, helping surface and reconcile differences
+> with people / _| shastra |_ they are observing.
