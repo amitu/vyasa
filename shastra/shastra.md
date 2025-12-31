@@ -38,8 +38,8 @@ call out things, that then you can dedicate more focus / attention on.
 
 So the first think I want to invite your attention to is:
 
-> **^shastra^** - a repository of knowledge. Contains authoritative
-> definitions (_| bhasya |_) and supporting material (tutorials, explanations)
+> **^ shastra ^** - a repository of knowledge, contains authoritative 
+> definitions, **^ bhasya ^** and supporting material (tutorials, explanations) 
 > that help humans understand the concepts.
 
 You are reading this in a github repository called amitu/vyasa, which is one
