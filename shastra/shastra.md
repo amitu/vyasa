@@ -1,16 +1,27 @@
-# _| shastra |_
+# _| vyasa |_ _| shastra |_
+
+So _| vyasa |_ is a software that helps you create your own personal _| shastra
+|_, and you do that by either creating your own original _| bhasya |_ or copy
+paste any _| bhasya |_ from _| shastra |_ you are "observing" (_| observed
+shastra |_).
+
+> **^ vyasa helps track personal accepted knowledge ^** and deals with each
+> statement as a personal position, helping surface and reconcile differences
+> with people / _| shastra |_ they are observing.
 
 _| shastra |_ is collection of knowledge accepted by a person. A set of knowledge
 that this person has personally found satisfactory or useful in their life. The
 primary audience of a _| shastra |_ is the pupils, students, who declare this
-person their personal guru. Or the children of that person maintaining the
-_| shastra |_, as this is what they want to pass on to their kids, so their kids
-do not make the same mistakes, or benefit from the same gyan this person
-benefited from.
+person their personal guru / teacher / guide / adviser. Or the children of that 
+person maintaining the_| shastra |_, as this is what they want to pass on to 
+their kids, so their kids do not make the same mistakes, or benefit from the 
+same gyan this person benefited from.
 
-_| shastra |_ is not a way to make money, not for wide distribution, it's a
-personal document, open for people around that person, so they can understand
-the person.
+> **^ shastra are personal ^**, and everyone participating in this system, using
+> **^ vyasa ^** software in day to day life is to create their own **^ shastra
+> ^** by observing other **^ shastra ^** they find worth learning from. Goal is
+> to copy-paste the specific **^ bhasya ^** one has just learnt, found
+> interesting or worth re-sharing / propagating / remembering.
 
 Not everything a person keeps in their _| shastra |_ is for everyone's scrutiny,
 the system we are proposing works on files, but a separate system can control
@@ -38,13 +49,14 @@ call out things, that then you can dedicate more focus / attention on.
 
 So the first think I want to invite your attention to is:
 
-> **^ shastra ^** - a repository of knowledge, organized as **^ mantra ^**,
-> **^ bhasya ^** and supporting material (tutorials, explanations) that help 
-> humans understand the concepts.
+> **^ shastra ^** - a repository/collection of knowledge, organized as **^ 
+> mantra ^**, **^ bhasya ^** and supporting material (tutorials, explanations) 
+> that help humans understand the concepts.
 
-You are reading this in a github repository called amitu/vyasa, which is one
-way to distribute _| shastra |_, and is called a repository of knowledge. You
-can distribute _| shastra |_ as a zip file, or even a single text file, or as a
+You are reading this in a GitHub repository called `amitu/vyasa`, which is one
+way to distribute _| shastra |_, and we are calling it a repository of 
+knowledge. You can distribute _| shastra |_ as a zip file, or even a single text 
+file (thoough we recommend folder structure for better organization), or as a 
 series of social media posts and so forth.
 
 I quoted text above is kind of a _| bhasya |_, a unit of things worth reading /
@@ -58,16 +70,23 @@ _| bhasya |_, but the rest of the text in this document for example, is
 supporting material, explanation here or philosophy, tutorial etc. They
 are to be read, if you are trying to understand something for the first time.
 
-> **^ shastra are personal ^**, and everyone participating in this system, using
-> **^ vyasa ^** software in day to day life is to create their own **^ shastra 
-> ^** by observing other **^ shastra ^** they find worth learning from. Goal is
-> to copy-paste the specific **^ bhasya ^** one has just learnt, found 
-> interesting or worth re-sharing / propagating / remembering.
+We are not trying to make shastra formal, it can be formal or informal, and 
+informal language is acceptable and encouraged, repetition is encouraged, saying
+same things in different way, are all good things as that may help solidify
+something, as shastra are not specifications but educations You're treating it 
+as educational text where the range of examples aids understanding. Consider:
 
-So _| vyasa |_ is a software that helps you create your own personal _| shastra 
-|_, and you do that by either creating your own original _| bhasya |_ or copy
-paste from _| shastra |_ you are "observing" (_| observed shastra |_).
+shastra: vyasa
+> A **^ bhasya ^** is an authoritative / normative / important / agreed upon
+> commentary or explanation about one or more _| mantra |_. **^ every mantra
+> has at least one bhasya ^**. And **^ bhasya must be repeated verbatim ^**
 
-> **^ vyasa helps track personal accepted knowledge **^ and deals with each
-> statement as a personal position, helping surface and reconcile differences
-> with people / _| shastra |_ they are observing.
+We have used loose language, "authoritative / normative / important / agreed 
+upon" which plants four different contexts:
+
+- Company policy → authoritative
+- Software spec → normative
+- Personal insight → important
+- Team decision → agreed upon
+
+So a bhasya can be any of that, or something else like them.

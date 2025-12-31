@@ -21,19 +21,22 @@ to the names of the concepts being discussed, over or under generalizing words
 spoken by each other etc.
 
 Mantra acts like a longish name, but is meant not just as the name but the exact
-concept, like $e = mc^2$, or "circle is local of point equidistant from a 
+concept, like $e = mc^2$, or "circle is locus of points equidistant from a 
 given point", such sentences are called _| mantra |_ in _| vyasa |_. 
 
-> the most important **^mantra^** is that **^mantra must be repeated verbatim^**,
-> it helps people first agree on a precise concept being discussed.
+> **^ mantra ^** - a precisely-worded statement meant to invoke a specific idea.
+> Examples: $e=mc^2$, "circle is locus of points equidistant from a given 
+> point". **^ mantra must be repeated verbatim ^** to prevent drift.
+
+The _| mantra |_ helps people first agree on a precise concept being discussed.
 
 But with such formulas, e.g. $e = mc^2$, we still have possible doubts, what do 
 you mean by mass, is it rest mass or mass observed by some other observer, or 
 what is energy really, and thus we need what we call _| bhasya |_.
 
-> A **^bhasya^** is an authoritative / normative / important / agreed upon
-> commentary or explanation about one or more **^mantra^**. **^every mantra
-> has at least one bhasya^**. And **^bhasya must be repeated verbatim^**
+> A **^ bhasya ^** is an authoritative / normative / important / agreed upon
+> commentary or explanation about one or more _| mantra |_. **^ every mantra
+> has at least one bhasya ^**. And **^ bhasya must be repeated verbatim ^**
 
 As you see I have introduced a bunch of rules / statements about a bunch of
 interconnected concepts, created new mantras like _| bhasya must be repeated 
